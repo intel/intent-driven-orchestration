@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rmpod-configmap
+data:
+  defaults.json: |-
+    {
+      "look_back": 20,
+      "min_pods": 1,
+      "endpoint": "rmpod-actuator-service",
+      "port": 33334,
+      "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
+      "plugin_manager_endpoint": "plugin-manager-service",
+      "plugin_manager_port": 33333
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rmpod-actuator
+  labels:
+    name: rmpod-actuator
+spec:
+  serviceAccountName: planner-service-account
+  containers:
+  - name: rmpod-actuator
+    image: 127.0.0.1:5000/rmpod:0.1.0
+    args: [ "-config", "/config/defaults.json" ]
+    ports:
+    - containerPort: 33334
+    securityContext:
+        capabilities:
+          drop:
+            - all
+        runAsNonRoot: true
+        runAsUser: 10001
+    volumeMounts:
+      - name: rmpod-configmap-volume
+        mountPath: /config/
+  volumes:
+    - name: rmpod-configmap-volume
+      configMap:
+        name: rmpod-configmap
+        items:
+          - key: defaults.json
+            path: defaults.json
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rmpod-actuator-service
+spec:
+  clusterIP: None
+  selector:
+    name: rmpod-actuator
+  ports:
+    - protocol: TCP
+      port: 33334
+      targetPort: 33334

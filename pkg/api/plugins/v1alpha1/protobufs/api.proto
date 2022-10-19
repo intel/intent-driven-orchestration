@@ -1,0 +1,166 @@
+// To regenerate api.pb.go run hack/generate_code.sh or make api in the root of the repository
+syntax = "proto3";
+
+package plugins;
+option go_package = "./plugins";
+
+// Empty empty response
+message Empty {
+}
+
+// Registration is the service advertised by the IDO controller
+// Only when the controller  answers with a success code to a Register Request
+// may IDO Plugins start their service
+// Registration may fail when ido plugin version is not supported by
+// ido controller or the registered plugin name is already taken by another
+// active ido plugin. IDO plugin is expected to terminate upon registration failure
+
+
+service Registration {
+	rpc Register(RegisterRequest) returns (RegistrationStatusResponse) {}
+}
+
+// PluginType type of the plugin : can be actuator or planner plugin
+enum PluginType{
+    ACTUATOR = 0;
+    PLANNER = 1;
+}
+
+// PluginInfo is the message sent from a plugin to the IDO pluginwatcher for plugin registration
+message PluginInfo {
+    // Type of the Plugin. Actuator Plugin or Planner Plugin
+	PluginType type = 1;
+	// Plugin name that uniquely identifies the plugin for the given plugin type.
+	string name = 2;
+	// Mandatory endpoint location, it usually represents an internal ip to the pod
+    // which will handle all plugin requests.
+	string endpoint = 3;
+	// Plugin service API versions the plugin supports.
+	string supported_versions = 4;
+}
+
+// RegisterRequest A request to register a new plugin with given plugin info struct
+message RegisterRequest {
+	PluginInfo pInfo = 1;
+}
+
+// RegistrationStatus is the message sent from IDO pluginwatcher to the plugin for notification on registration status
+message RegistrationStatusResponse {
+	// True if plugin gets registered successfully at ido controller
+	bool plugin_registered  = 1;
+	// Error message in case plugin fails to register, empty string otherwise
+	string error  = 2;
+}
+
+// Intent holds information about an intent in the system.
+// Intent struct
+message Intent {
+    string key = 1;
+    double priority = 2;
+    string target_key = 3;
+    string target_kind = 4;
+    map<string, double> objectives = 5;
+}
+
+// ProfileType defines the type of KPI Profiles.
+enum ProfileType{
+	OBSOLETE = 0;
+	LATENCY = 1;
+	AVAILABILITY = 2;
+	THROUGHPUT = 3;
+	POWER = 4;
+}
+
+// Profile holds information about valid objective profiles.
+message Profile {
+    string key = 1;
+	ProfileType profile_type = 2;
+	string query = 3;
+	bool external = 4;
+	string address = 5;
+}
+
+// PodState the state of a pod
+message PodState {
+    map<string, string> resources = 1;
+    map<string, string> annotations = 2;
+    double availability = 3;
+    string node_name = 4;
+    string state = 5;
+    string qos_class = 6;
+}
+
+// DataEntry pod data
+message DataEntry {
+    map<string, double> data = 1;
+}
+
+
+// State IDO State representation
+message State {
+    Intent intent = 1;
+    map<string, PodState> current_pods = 2;
+    map<string, DataEntry> current_data = 3;
+}
+
+// PropertyType type of property: integer or string
+enum PropertyType{
+	INT_PROPERTY = 0;
+	STRING_PROPERTY = 1;
+}
+
+// ActionProperties action properties
+message ActionProperties{
+	PropertyType type = 1;
+	map<string, int32> intProperties = 2;
+	map<string, string> strProperties = 3;
+}
+
+// Action action grpc type consisting of name and properties
+message Action {
+	string name = 1;
+	ActionProperties properties = 2;
+}
+
+
+// NextStateRequest next state request passed via grpc as input for remote actuators to trigger the next state function
+message NextStateRequest {
+	State state = 1;
+	State goal = 2;
+	map<string, Profile> profiles = 3;
+}
+
+// NextStateResponse response of the remote actual grpc call
+message NextStateResponse{
+	repeated State states = 1;
+	repeated double utilities  = 2;
+	repeated Action actions = 3;
+}
+
+// PerformRequest perform request passed via grpc as input for remote actuators to trigger the perform function
+message PerformRequest {
+	State state = 1;
+	repeated Action plan = 2;
+}
+
+
+// PerformRequest effect request passed via grpc as input for remote actuators to trigger the effect function
+message EffectRequest {
+	State state = 1;
+	map<string, Profile> profiles = 2;
+
+}
+
+// ActuatorPlugin Plugin Interface for actuators
+service ActuatorPlugin{
+	// NextState should return a set of potential follow-up states for a given state if this actuator would potentially be used.
+	rpc NextState(NextStateRequest) returns (NextStateResponse);
+    // Perform should perform those actions of the plan that it is in charge of
+	rpc Perform(PerformRequest) returns (Empty);
+	// Effect should (optionally) recalculate the effect this actuator has for ALL objectives for this workload.
+    rpc Effect(EffectRequest) returns (Empty);
+}
+
+// Placeholder IDOPlannerPlugin planner
+//service PlannerPlugin{
+//}

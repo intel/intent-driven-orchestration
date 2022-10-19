@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rdt-configmap
+data:
+  defaults.json: |-
+    {
+      "interpreter": "python3",
+      "analytics_script": "./pkg/planner/actuators/platform/analyze.py",
+      "prediction_script": "./pkg/planner/actuators/platform/predict.py",
+      "options": ["None", "COS1", "COS2", "COS3"],
+      "endpoint": "rdt-actuator-service",
+      "port": 33334,
+      "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
+      "plugin_manager_endpoint": "plugin-manager-service",
+      "plugin_manager_port": 33333
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rdt-actuator
+  labels:
+    name: rdt-actuator
+spec:
+  serviceAccountName: planner-service-account
+  containers:
+  - name: rdt-actuator
+    image: 127.0.0.1:5000/rdt:0.1.0
+    args: [ "-config", "/config/defaults.json" ]
+    ports:
+    - containerPort: 33334
+    securityContext:
+        capabilities:
+          drop:
+            - all
+        runAsNonRoot: true
+        runAsUser: 10001
+    volumeMounts:
+      - name: rdt-configmap-volume
+        mountPath: /config/
+    env:
+    # Needed for the analytics python script.
+    - name: MONGO_URL
+      value: "mongodb://planner-mongodb-service:27017/"
+  volumes:
+    - name: rdt-configmap-volume
+      configMap:
+        name: rdt-configmap
+        items:
+          - key: defaults.json
+            path: defaults.json
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rdt-actuator-service
+spec:
+  clusterIP: None
+  selector:
+    name: rdt-actuator
+  ports:
+    - protocol: TCP
+      port: 33334
+      targetPort: 33334

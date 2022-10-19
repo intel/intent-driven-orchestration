@@ -1,0 +1,163 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: intents.ido.intel.com
+spec:
+  group: ido.intel.com
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                targetRef:
+                  description: "TargetRef points to the controller managing the set of PODs."
+                  type: object
+                  properties:
+                    kind:
+                      description: 'Kind of the owner.'
+                      type: string
+                      enum:
+                        - Deployment
+                        - ReplicaSet
+                      default: Deployment
+                    name:
+                      description: 'Name of the owner.'
+                      type: string
+                  required:
+                    - name
+                priority:
+                  type: number
+                  description: "Priority for a set of PODs"
+                  format: float
+                  minimum: 0.01  # prevents any div 0!
+                  maximum: 1.0
+                  default: 0.01
+                objectives:
+                  type: array
+                  description: "Objectives for a set of PODs."
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: "Name of this target objective - e.g. P50compliance."
+                      value:
+                        type: number
+                        description: "Target value for this objective - e.g. 10ms ==> 10."
+                        format: float
+                      measuredBy:
+                        type: string
+                        description: "Defines what kind of an objective this is. Also defines if the objective is an upper or lower bound objective."
+                    required:
+                      - name
+                      - value
+                      - measuredBy
+                  minItems: 1
+                  maxItems: 5
+                  # uniqueItems: true
+              required:
+                - targetRef
+                - objectives
+          # TODO: add status object showing if it is fulfilled or not.
+          required:
+            - spec
+      additionalPrinterColumns:
+        - name: Intents
+          type: string
+          description: "Target intents."
+          jsonPath: .spec.objectives[*].targetName
+          # BUG: https://github.com/kubernetes/kubectl/issues/517
+        - name: Prio
+          type: number
+          description: "Priority."
+          jsonPath: .spec.priority
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: intents
+    singular: intent
+    kind: Intent
+    shortNames:
+      - i
+      - ido
+    categories:
+      - all
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kpiprofiles.ido.intel.com
+spec:
+  group: ido.intel.com
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                # TODO: add weight.
+                query:
+                  type: string
+                  description: "This is an optional parameter - if defined, the user needs to provide a query string defining how to capture the objective's KPI. Optional parameters - in accordance with the provide documentation - can be detailed under props."
+                description:
+                  type: string
+                  description: "Ideally includes a description on what is measured by the query - including e.g. information on units etc."
+                type:
+                  type: string
+                  description: "Defines the type of the KPI."
+                  enum:
+                    - availability
+                    - latency
+                    - throughput
+                    # TODO: power
+                    # TODO: assure cardinality: 0..1 avail & throughput, 0..* latency.
+                props:
+                  type: object
+                  description: "Optional map of properties."
+                  additionalProperties: true
+              required:
+                - type
+            status:
+              type: object
+              properties:
+                resolved:
+                  type: boolean
+                  description: "Indicates if this KPI profile is understood by the planner."
+                reason:
+                  type: string
+                  description: "Reason why this KPI profile is not accepted."
+          required:
+            - spec
+      subresources:
+        status: { }
+      additionalPrinterColumns:
+        - name: Resolved
+          type: boolean
+          description: "Indicates if this KPI profile is understood by the planner."
+          jsonPath: .status.resolved
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  scope: Namespaced
+  names:
+    plural: kpiprofiles
+    singular: kpiprofile
+    kind: KPIProfile
+    shortNames:
+      - kp
+      - kpis
+    categories:
+      - all

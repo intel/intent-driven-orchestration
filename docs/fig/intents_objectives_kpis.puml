@@ -1,0 +1,38 @@
+@startuml
+header
+    Intents, objectives, KPIs.
+endheader
+
+skinparam classFontColor automatic
+skinparam roundCorner 4
+skinparam classBackgroundColor #fff
+skinparam classHeaderBackgroundColor #0068b5
+
+hide empty members
+hide class circle
+
+class Intent {
+  targetKey
+  targetKind
+  Priority
+}
+class Objective {
+  name
+  value
+}
+enum KPIType {
+  latency
+  throughput
+  availability
+  power
+}
+class KPIProfile {
+  query: string
+  endpoint: address
+  external: bool
+}
+Intent "1" *-right- "1..n" Objective: objectives
+Objective "0..*" -- "1" KPIProfile: measuredBy
+KPIProfile -right-> KPIType: type
+
+@enduml

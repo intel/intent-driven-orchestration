@@ -1,0 +1,39 @@
+# These should match whatever is defined in default_queries.json file.
+apiVersion: "ido.intel.com/v1alpha1"
+kind: KPIProfile
+metadata:
+  name: p50latency
+spec:
+  type: "latency"
+  description: "Measures P50 latency in ms over a 30ms time window as reported by Linkerd service mesh."
+---
+apiVersion: "ido.intel.com/v1alpha1"
+kind: KPIProfile
+metadata:
+  name: p95latency
+spec:
+  type: "latency"
+  description: "Measures P95 latency in ms over a 30ms time window as reported by Linkerd service mesh."
+---
+apiVersion: "ido.intel.com/v1alpha1"
+kind: KPIProfile
+metadata:
+  name: p99latency
+spec:
+  type: "latency"
+  description: "Measures P99 latency in ms over a 30ms time window as reported by Linkerd service mesh."
+---
+apiVersion: "ido.intel.com/v1alpha1"
+kind: KPIProfile
+metadata:
+  name: throughput
+spec:
+  type: "throughput"
+  description: "Measures requests per second aggregated over a 30ms time window as reported by Linkerd service mesh."
+---
+apiVersion: "ido.intel.com/v1alpha1"
+kind: KPIProfile
+metadata:
+  name: availability
+spec:
+  type: "availability"

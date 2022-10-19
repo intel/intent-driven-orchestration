@@ -1,0 +1,33 @@
+@startuml
+skinparam componentStyle rectangle
+
+database "knowledge base" as kb
+
+component framework {
+   component "pod monitor" as pm
+   component "intent monitor" as im
+   component "KPIprofile monitor" as km
+   component "intent controller" as ic
+   note right: runs continuously.
+   pm -down-> ic: updates
+   im -down-> ic: updates
+   km -down-> ic: updates
+}
+component "pluggable planner(s)" as plnr {
+   component "A* planner" as astar
+}
+ic -down-> astar: plan,\nexecute,\ntrigger effect calculation
+ic -down-> kb: trace event
+component "pluggable actuator(s)" as act {
+   component "actuator 0" as a0
+   component "actuator 1" as a1
+   component "actuator n" as a2
+   a0 -down-> kb
+   a1 -down-> kb
+   a2 -down-> kb: get model, update model
+}
+astar -down-> a0
+astar -down-> a1
+astar -down-> a2: find next state,\nperform,\ntrigger effect calculation
+
+@enduml

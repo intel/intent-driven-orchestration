@@ -1,0 +1,18 @@
+apiVersion: "ido.intel.com/v1alpha1"
+kind: Intent
+metadata:
+  name: my-function-intent
+spec:
+  targetRef:
+    kind: "Deployment"
+    name: "default/function-deployment"
+  objectives:
+    - name: my-function-p95compliance
+      value: 4
+      measuredBy: default/p95latency
+    - name: my-function-availability
+      value: 0.99
+      measuredBy: default/availability
+    - name: my-function-rps
+      value: 0.0
+      measuredBy: default/throughput

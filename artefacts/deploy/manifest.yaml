@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: planner-configmap
+data:
+  defaults.json: |-
+    {
+      "generic": {
+        "mongo_endpoint": "mongodb://planner-mongodb-service:27017/"
+      },
+      "controller": {
+        "workers": 4,
+        "task_channel_length": 100,
+        "informer_timeout": 30,
+        "controller_timeout": 45,
+        "plan_cache_ttl": 45000,
+        "plan_cache_timeout": 5000,
+        "telemetry_endpoint": "http://prometheus-service.telemetry:9090/api/v1/query",
+        "host_field": "exported_instance",
+        "metrics": [
+          {
+            "name": "cpu_value",
+            "query": "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"
+          }
+        ]
+      },
+      "monitor": {
+        "pod": {
+          "workers": 2
+        },
+        "profile": {
+          "workers": 2,
+          "queries": "/queries/default_queries.json"
+        },
+        "intent": {
+          "workers": 2
+        }
+      },
+      "planner": {
+        "astar": {
+          "opportunistic_candidates": 0,
+          "max_states": 2000,
+          "max_candidates": 10,
+          "plugin_manager_endpoint": "plugin-manager-service",
+          "plugin_manager_port": 33333
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: planner-queries-configmap
+data:
+  default_queries.json: |-
+    {
+      "default/p50latency": {
+        "query": "histogram_quantile(0.5,sum(irate(response_latency_ms_bucket{namespace=\"%s\",%s=\"%s\",direction=\"inbound\"}[30s]))by(le,%s))",
+        "endpoint": "http://prometheus.linkerd-viz:9090/api/v1/query"
+      },
+      "default/p95latency": {
+        "query": "histogram_quantile(0.95,sum(irate(response_latency_ms_bucket{namespace=\"%s\",%s=\"%s\",direction=\"inbound\"}[30s]))by(le,%s))",
+        "endpoint": "http://prometheus.linkerd-viz:9090/api/v1/query"
+      },
+      "default/p99latency": {
+        "query": "histogram_quantile(0.99,sum(irate(response_latency_ms_bucket{namespace=\"%s\",%s=\"%s\",direction=\"inbound\"}[30s]))by(le,%s))",
+        "endpoint": "http://prometheus.linkerd-viz:9090/api/v1/query"
+      },
+      "default/throughput": {
+        "query": "sum(irate(request_total{namespace=\"%s\",%s=\"%s\",direction=\"inbound\"}[30s]))by(le,%s)",
+        "endpoint": "http://prometheus.linkerd-viz:9090/api/v1/query"
+      },
+      "default/availability": {
+        "query": "",
+        "endpoint": ""
+      }
+    }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: planner-service-account
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: planner-role
+rules:
+  - apiGroups: [ "ido.intel.com" ]
+    resources: [ "intents", "kpiprofiles" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "ido.intel.com" ]
+    resources: [ "intents/status", "kpiprofiles/status" ]
+    verbs: [ "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "watch", "patch", "update", "delete" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "replicasets", "deployments" ]
+    verbs: [ "get", "patch", "update" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  namespace: default
+  name: planner-role-binding
+subjects:
+  - kind: ServiceAccount
+    namespace: default
+    name: planner-service-account
+roleRef:
+  kind: ClusterRole
+  name: planner-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: planner-mongodb
+  labels:
+    name: planner-mongodb
+spec:
+  containers:
+    - name: mongodb
+      image: mongo
+      ports:
+        - containerPort: 27017
+      resources:
+        limits:
+          memory: "4000Mi"
+          cpu: "2000m"
+        requests:
+          memory: "256Mi"
+          cpu: "500m"
+  tolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: planner-mongodb-service
+spec:
+  selector:
+    name: planner-mongodb
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plugin-manager-service
+spec:
+  selector:
+    name: planner
+  ports:
+    - protocol: TCP
+      port: 33333
+      targetPort: 33333
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: planner
+  labels:
+    name: planner
+spec:
+  serviceAccountName: planner-service-account
+  containers:
+    - name: planner
+      image: 127.0.0.1:5000/planner:0.1.0
+      ports:
+        - containerPort: 33333
+      imagePullPolicy: Always
+      args: [ "-config", "/config/defaults.json", "-v", "2" ]
+      securityContext:
+        capabilities:
+          drop:
+            - all
+        runAsNonRoot: true
+        runAsUser: 10001
+      resources:
+        limits:
+          memory: "1000Mi"
+          cpu: "2000m"
+        requests:
+          memory: "700Mi"
+          cpu: "1000m"
+      volumeMounts:
+        - name: planner-config
+          mountPath: /config/
+        - name: planner-queries
+          mountPath: /queries/
+      env:
+        # Needed for the analytics python script.
+        - name: MONGO_URL
+          value: "mongodb://planner-mongodb-service:27017/"
+  tolerations:
+  - key: node-role.kubernetes.io/master
+    operator: Exists
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+  volumes:
+    - name: planner-config
+      configMap:
+        name: planner-configmap
+        items:
+          - key: defaults.json
+            path: defaults.json
+    - name: planner-queries
+      configMap:
+        name: planner-queries-configmap
+        items:
+          - key: default_queries.json
+            path: default_queries.json

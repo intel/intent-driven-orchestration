@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: function-deployment
+  labels:
+    app: sample-function
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-function
+  template:
+    metadata:
+      labels:
+        app: sample-function
+    spec:
+      containers:
+        - name: sample-function
+          image: testfunction/rust_function:0.1
+          ports:
+            - containerPort: 8080
+          env:
+            - name: WORKERS
+              value: "2"
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: function-service
+spec:
+  selector:
+    app: sample-function
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8080
+  type: LoadBalancer

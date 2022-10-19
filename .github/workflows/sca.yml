@@ -1,0 +1,48 @@
+name: static
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          wget -q https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz
+          tar -xvf shellcheck-stable.linux.x86_64.tar.xz
+          shellcheck-stable/shellcheck -V; find . -name '*.sh' -print -exec sha256sum {} \;; find . -type f \( -name "*.sh" \) -print -exec shellcheck-stable/shellcheck -a -s bash -S warning -f gcc {} \;;
+        shell: bash
+  hadolint:
+    runs-on: ubuntu-latest
+    name: Hadolint
+    steps:
+      - uses: actions/checkout@v3
+      - run: wget -q https://github.com/hadolint/hadolint/releases/download/v2.10.0/hadolint-Linux-x86_64 -O hadolint; chmod +x hadolint ; find . -type f \( -name "Dockerfile*" \) -print0 | xargs -n 1 -0 ./hadolint ;
+  gofmt-imports:
+    runs-on: ubuntu-latest
+    name: Go Fmt and Go Import
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: 'go.mod'
+      - run:  |
+          go install golang.org/x/tools/cmd/goimports@v0.1.12 && goimports -l . && gofmt -l .
+        shell: bash
+  golangci:
+    runs-on: ubuntu-latest
+    name: lint
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - uses: actions/checkout@v3
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.50.0
+          # Additional linting tools can be added here
+          args: --enable=revive,errcheck,goimports,govet,nilerr,gosec --timeout=5m

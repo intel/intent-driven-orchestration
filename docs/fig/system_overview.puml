@@ -1,0 +1,54 @@
+@startuml
+header
+    System overview.
+endheader
+
+skinparam monochrome true
+skinparam componentStyle uml2
+
+actor user
+cloud Cloud
+
+node "Node" {
+    interface endpoint as kep
+    component kubelet
+    frame "POD(s)" as pod {
+        component app
+        component "sidecar" as sc
+    }
+    component "telemetry agent" as agent
+    kep -left- kubelet
+    kubelet -down- pod
+}
+
+package "Observerability" {
+    database prometheus
+    prometheus --> agent: scrape
+    prometheus --> sc: scrape
+}
+
+package "Control Plane" {
+    interface ep
+    component "api server" as api
+    component scheduler
+    component "controller" as kubectrl
+    component "cloud cont." as cloudctrl
+    component "planner" #lightgray
+    database etcd
+    database "knowledge base" as kb #lightgray
+    ep -left- api
+    etcd <-right-> api
+    api <-up-> scheduler
+    api <-up-> kubectrl
+    api <-up-> cloudctrl
+    api <-down-> planner
+    planner -left-> prometheus
+    kb -left- planner
+    cloudctrl <.up.> Cloud
+    api --> kep
+}
+
+
+user -left-> ep
+
+@enduml

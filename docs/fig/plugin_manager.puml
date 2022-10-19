@@ -1,0 +1,31 @@
+@startuml
+header
+    plugins.
+endheader
+
+skinparam monochrome true
+
+box intent controller #White
+    participant planner
+    participant "plugin manager" as pm
+end box
+box plugin #White
+    participant "actuator plugin" as ap
+end box
+
+planner -> pm: NewPluginManagerServer
+activate pm
+
+activate ap
+ap -> pm: Register(plugin info, endpoint)
+pm -> ap: Connect
+note right: initiates gRPC connection.
+
+group on event
+    planner -> pm: <event>
+    pm -> ap: <one of NextState, Perform, Effect>
+    ap --> pm: result
+    pm --> planner: result
+end
+
+@enduml

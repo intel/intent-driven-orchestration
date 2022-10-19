@@ -1,0 +1,46 @@
+{
+  "generic": {
+    "mongo_endpoint": "mongodb://planner-mongodb-service:27017/"
+  },
+  "controller": {
+    "workers": 2,
+    "task_channel_length": 100,
+    "informer_timeout": 30,
+    "controller_timeout": 45,
+    "plan_cache_ttl": 45000,
+    "plan_cache_timeout": 5000,
+    "telemetry_endpoint": "http://prometheus-service.telemetry:9090/api/v1/query",
+    "host_field": "exported_instance",
+    "metrics": [
+      {
+        "name": "cpu_value",
+        "query": "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"
+      },
+      {
+        "name": "llc_value",
+        "query": "avg(rate(collectd_intel_pmu_counter_total{type=\"cache-misses\", exported_instance=~\"%s\"}[30s]))by(exported_instance)"
+      }
+    ]
+  },
+  "monitor": {
+    "pod": {
+      "workers": 2
+    },
+    "profile": {
+      "workers": 2,
+      "queries": "artefacts/examples/default_queries.json"
+    },
+    "intent": {
+      "workers": 2
+    }
+  },
+  "planner": {
+    "astar": {
+      "opportunistic_candidates": 0,
+      "max_states": 2000,
+      "max_candidates": 10,
+      "plugin_manager_endpoint": "plugin-manager-service",
+      "plugin_manager_port": 33333
+    }
+  }
+}

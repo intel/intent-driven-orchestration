@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scaleout-configmap
+data:
+  defaults.json: |-
+    {
+      "interpreter": "python3",
+      "analytics_script": "./pkg/planner/actuators/scaling/analytics.py",
+      "max_pods": 128,
+      "look_back": 20,
+      "max_proactive_scale_out": 0,
+      "proactive_latency_factor": 0.8,
+      "endpoint": "scaleout-actuator-service",
+      "port": 33334,
+      "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
+      "plugin_manager_endpoint": "plugin-manager-service",
+      "plugin_manager_port": 33333
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: scaleout-actuator
+  labels:
+    name: scaleout-actuator
+spec:
+  serviceAccountName: planner-service-account
+  containers:
+  - name: scaleout-actuator
+    image: 127.0.0.1:5000/scaleout:0.1.0
+    args: [ "-config", "/config/defaults.json" ]
+    ports:
+    - containerPort: 33334
+    securityContext:
+        capabilities:
+          drop:
+            - all
+        runAsNonRoot: true
+        runAsUser: 10001
+    volumeMounts:
+      - name: scaleout-configmap-volume
+        mountPath: /config/
+    env:
+    # Needed for the analytics python script.
+    - name: MONGO_URL
+      value: "mongodb://planner-mongodb-service:27017/"
+  volumes:
+    - name: scaleout-configmap-volume
+      configMap:
+        name: scaleout-configmap
+        items:
+          - key: defaults.json
+            path: defaults.json
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scaleout-actuator-service
+spec:
+  clusterIP: None
+  selector:
+    name: scaleout-actuator
+  ports:
+    - protocol: TCP
+      port: 33334
+      targetPort: 33334
