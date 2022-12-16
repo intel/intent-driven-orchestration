@@ -22,12 +22,12 @@ COPY --from=builder /plugins/licenses ./licenses
 COPY pkg/planner/actuators/platform/analyze.py /plugins/pkg/planner/actuators/platform/analyze.py
 COPY pkg/planner/actuators/platform/predict.py /plugins/pkg/planner/actuators/platform/predict.py
 
-RUN apk update && apk --no-cache add python3=~3.10.5 py3-matplotlib=~3.5.2  \
-    py3-pip=~22.1.1 py3-scikit-learn=~1.1.0
+RUN apk update && apk --no-cache add python3=~3.10 py3-matplotlib=~3.5  \
+    py3-pip=~22.1 py3-scikit-learn=~1.1
 
-RUN pip install --no-cache-dir pymongo==4.2.0
+RUN pip install --no-cache-dir pymongo==4.2
 
 USER nonroot:nonroot
 
-EXPOSE 3334
+EXPOSE 33334
 ENTRYPOINT ["/plugins/bin/plugins/rdt"]
