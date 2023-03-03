@@ -3,7 +3,7 @@ SCALEOUT_PLUGIN=scale_out
 RMPOD_PLUGIN=rm_pod
 RDT_PLUGIN=rdt
 GO_CILINT_CHECKERS=errcheck,goimports,gosec,gosimple,govet,ineffassign,nilerr,revive,staticcheck,unused
-DOCKER_IMAGE_VERSION=0.1.0
+DOCKER_IMAGE_VERSION=0.1.1
 
 api:
 	hack/generate_code.sh
