@@ -8,12 +8,10 @@ WORKDIR /app
 COPY . ./
 
 RUN make prepare-build build \
-    && go run github.com/google/go-licenses@v1.3.1 save "./..." --save_path licenses \
+    && go run github.com/google/go-licenses@v1.6.0 save "./..." --save_path licenses \
     && hack/additional-licenses.sh
 
-FROM alpine:3.16
-
-RUN adduser -D nonroot
+FROM scratch
 
 WORKDIR /app
 

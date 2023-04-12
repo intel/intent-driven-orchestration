@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
 
@@ -10,6 +11,8 @@ import (
 
 	"os"
 	"os/signal"
+
+	val "github.com/intel/intent-driven-orchestration/plugins"
 
 	plugins "github.com/intel/intent-driven-orchestration/pkg/api/plugins/v1alpha1"
 	"github.com/intel/intent-driven-orchestration/pkg/common"
@@ -55,6 +58,16 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Error loading configuration for actuator: %s", err)
 	}
+	err = isValidConf(cfg.MinPods)
+	if err != nil {
+		klog.Fatalf("Error on configuration for actuator: %s", err)
+	}
+	err = val.IsValidGenericConf(cfg.LookBack, cfg.PluginManagerPort, cfg.Port, "none", "none",
+		cfg.Endpoint, cfg.PluginManagerEndpoint, cfg.MongoEndpoint)
+	if err != nil {
+		klog.Fatalf("Error on generic configuration for actuator: %s", err)
+	}
+
 	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
@@ -92,4 +105,11 @@ func main() {
 func init() {
 	flag.StringVar(&kubeConfig, "kubeConfig", "", "Path to a kube config file.")
 	flag.StringVar(&config, "config", "", "Path to configuration file.")
+}
+
+func isValidConf(confMinPods int) error {
+	if confMinPods <= 0 || confMinPods > 128 {
+		return fmt.Errorf("invalid pods number")
+	}
+	return nil
 }

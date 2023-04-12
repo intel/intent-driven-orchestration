@@ -1,9 +1,0 @@
-{
-  "look_back": 20,
-  "min_pods": 1,
-  "endpoint": "rmpod-actuator-service",
-  "port": 33334,
-  "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
-  "plugin_manager_endpoint": "plugin-manager-service",
-  "plugin_manager_port": 33333
-}

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,39 +15,61 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// getPods returns information about the PODs which are part of the pod set.
+// resourceDelimiter defines the delimiter used to constructor the keys for the resource map.
+const resourceDelimiter = "_"
+
+// getPods returns information about the PODs & their containers which are part of the pod set. Will return information on pod states, annotations and resources.
 func getPods(clientSet kubernetes.Interface,
 	informer v1.PodInformer,
 	targetKey string,
 	targetKind string,
-	podErrors map[string][]common.PodError) (map[string]common.PodState, []string) {
-	res := map[string]common.PodState{}
+	podErrors map[string][]common.PodError) (map[string]common.PodState, map[string]string, map[string]string, []string) {
+	podStates := map[string]common.PodState{}
 	var hosts []string
 	tmp := strings.Split(targetKey, "/")
+	if len(tmp) <= 1 {
+		// TODO: for future release check if we can use a struct(ns, name) instead of string - check K8s.
+		klog.Errorf("invalid target key")
+		return nil, nil, nil, nil
+	}
 	var labels *metaV1.LabelSelector
 	if targetKind == "Deployment" {
 		deployment, err := clientSet.AppsV1().Deployments(tmp[0]).Get(context.TODO(), tmp[1], metaV1.GetOptions{})
 		if err != nil {
 			klog.Errorf("Deployment '%s' could not be found: %s.", targetKey, err)
-			return nil, nil
+			return nil, nil, nil, nil
 		}
 		labels = deployment.Spec.Selector
 	} else if targetKind == "ReplicaSet" {
 		rs, err := clientSet.AppsV1().ReplicaSets(tmp[0]).Get(context.TODO(), tmp[1], metaV1.GetOptions{})
 		if err != nil {
 			klog.Errorf("ReplicaSet '%s' could not be found: %s.", targetKey, err)
-			return nil, nil
+			return nil, nil, nil, nil
 		}
 		labels = rs.Spec.Selector
 	}
 	// Will ignore errors as pod list will be empty anyhow.
 	selector, _ := metaV1.LabelSelectorAsSelector(labels)
 	pods, _ := informer.Lister().Pods(tmp[0]).List(selector)
+	containerResources := map[string]string{}
+	var annotations map[string]string
 	for _, pod := range pods {
+		if len(annotations) != len(pod.ObjectMeta.Annotations) {
+			annotations = pod.ObjectMeta.Annotations
+		}
+		// for each container an entry is created in the map; the key holds a container index, resource name and identifier for requests and limits.
+		if len(containerResources) < 1 {
+			for i, container := range pod.Spec.Containers {
+				for name, requests := range container.Resources.Requests {
+					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "requests"}, resourceDelimiter)] = fmt.Sprint(requests.MilliValue())
+				}
+				for name, limits := range container.Resources.Limits {
+					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "limits"}, resourceDelimiter)] = fmt.Sprint(limits.MilliValue())
+				}
+			}
+		}
 		podAvailability := podAvailability(podErrors[pod.Name], time.Now())
-		res[pod.Name] = common.PodState{
-			Resources:    nil, // TODO: pick this up!
-			Annotations:  pod.ObjectMeta.Annotations,
+		podStates[pod.Name] = common.PodState{
 			Availability: podAvailability,
 			NodeName:     pod.Spec.NodeName,
 			State:        string(pod.Status.Phase),
@@ -53,7 +77,7 @@ func getPods(clientSet kubernetes.Interface,
 		}
 		hosts = append(hosts, pod.Spec.NodeName)
 	}
-	return res, hosts
+	return podStates, annotations, containerResources, hosts
 }
 
 // getCurrentState returns the current state for an objective.
@@ -67,7 +91,7 @@ func getCurrentState(
 	currentObjectives := map[string]float64{}
 
 	// get current measurements
-	pods, hosts := getPods(clientSet, informer, objective.TargetKey, objective.TargetKind, podErrors)
+	pods, annotations, resources, hosts := getPods(clientSet, informer, objective.TargetKey, objective.TargetKind, podErrors)
 	for item := range objective.Objectives {
 		profile := profiles[item]
 		if profile == (common.Profile{}) {
@@ -99,11 +123,14 @@ func getCurrentState(
 		},
 		CurrentPods: pods,
 		CurrentData: data,
+		Resources:   resources,
+		Annotations: annotations,
 	}
 	return state
 }
 
 // getDesiredState returns the desired state for an objective.
 func getDesiredState(objective common.Intent) common.State {
+	klog.Infof("getting a desired state %v for Planner to create a plan from an objective %v: ", common.State{Intent: objective}, objective)
 	return common.State{Intent: objective}
 }

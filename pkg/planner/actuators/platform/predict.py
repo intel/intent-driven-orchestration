@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 Script that predicts potential effect of RDT settings for a given workload.
+
+WARNING: These scripts are for proof of concept only and offer no guarantee
+of security or robustness. Do not use in a production environment.
 """
 
 import argparse
@@ -30,8 +33,8 @@ ALLOWED_MOD = [
     'sklearn.tree._tree'
 ]
 ALLOWED_CLASS = [
-    'RandomForestRegressor',
-    'DecisionTreeRegressor',
+    'ExtraTreesRegressor',
+    'ExtraTreeRegressor',
     '_reconstruct',
     'ndarray',
     'dtype',
@@ -89,7 +92,7 @@ def predict_app(environ, start_response):
         try:
             res = model.predict([[
                 body['load'],
-                body['llc_value'],
+                body['ipc_value'],
                 feature_map['rdt_config'].index(body['option']),
                 feature_map['qosclass'].index(body['class']),
                 body['replicas']

@@ -14,7 +14,6 @@ import (
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
 	"github.com/intel/intent-driven-orchestration/pkg/planner"
 
-	"golang.org/x/exp/maps"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -23,7 +22,7 @@ import (
 // TODO: using python scripts is fine for demo purposes, but we need to replace them; instantiation is slow.
 
 // rdtActionName represents the name action to configure a POD's RDT related configs.
-const rdtActionName = "config_rdt"
+const rdtActionName = "configureRDT"
 
 // rdtGroupName represents the name for all actions related to Intel RDT.
 const rdtGroupName = "rdt"
@@ -62,7 +61,7 @@ type requestBody struct {
 	Target   string  `json:"target"`
 	Option   string  `json:"option"`
 	Load     float64 `json:"load"`
-	LLCValue float64 `json:"llc_value"`
+	IPCValue float64 `json:"ipc_value"`
 	Class    string  `json:"class"`
 	Replicas int     `json:"replicas"`
 }
@@ -92,7 +91,7 @@ func doQuery(body requestBody) float64 {
 	var res responseBody
 	err = json.Unmarshal(respBody, &res)
 	if err != nil {
-		klog.Errorf("Could not unmarshall response: %s - %v.", err, body)
+		klog.Errorf("Could not unmarshall response: %s - request: %+v - response: %s", err, body, respBody)
 		return -1.0
 	}
 	return res.Val
@@ -124,12 +123,12 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 			if len(newState.CurrentData["cpu_value"]) > 1 {
 				load /= float64(len(newState.CurrentData["cpu_value"]))
 			}
-			llcLoad := 0.0
-			for _, val := range newState.CurrentData["llc_value"] {
-				llcLoad += val
+			ipc := 0.0
+			for _, val := range newState.CurrentData["ipc_value"] {
+				ipc += val
 			}
-			if len(newState.CurrentData["llc_value"]) > 1 {
-				llcLoad /= float64(len(newState.CurrentData["llc_value"]))
+			if len(newState.CurrentData["ipc_value"]) > 1 {
+				ipc /= float64(len(newState.CurrentData["ipc_value"]))
 			}
 			qosClass := "Burstable" // TODO: pick up from pod specs.
 			replicas := len(newState.CurrentPods)
@@ -140,7 +139,7 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 				Target:   k,
 				Option:   option,
 				Load:     load,
-				LLCValue: llcLoad,
+				IPCValue: ipc,
 				Class:    qosClass,
 				Replicas: replicas,
 			}
@@ -157,13 +156,14 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 		}
 
 		// test if better and closer...
-		if newState.Compare(goal, profiles) && newState.Distance(goal, profiles) < distance && found {
-			for _, pod := range newState.CurrentPods {
-				if len(pod.Annotations) > 0 {
-					pod.Annotations["rdt_visited"] = ""
-				} else {
-					pod.Annotations = map[string]string{"rdt_visited": ""}
-				}
+		if option == "None" && newState.IsBetter(goal, profiles) && found {
+			// if None is good enough, go for that.
+			return newState, option, 0.0
+		} else if newState.IsBetter(goal, profiles) && newState.Distance(goal, profiles) < distance && found {
+			if len(newState.Annotations) > 0 {
+				newState.Annotations["rdtVisited"] = ""
+			} else {
+				newState.Annotations = map[string]string{"rdtVisited": ""}
 			}
 			selectedOption = option
 			if tempPredSum < tempSum {
@@ -182,15 +182,11 @@ func (rdt RdtActuator) NextState(state *common.State, goal *common.State, profil
 	klog.V(2).Infof("Finding next state for %s.", state.Intent.Key)
 	currentOption := "None"
 	// we do not support recursive action calls in the state graph.
-	if len(state.CurrentPods) > 0 {
-		podKeys := maps.Keys(state.CurrentPods)
-		aPod := state.CurrentPods[podKeys[0]]
-		if _, found := aPod.Annotations["rdt_config"]; found {
-			currentOption = aPod.Annotations["rdt_config"]
-		}
-		if _, found := aPod.Annotations["rdt_visited"]; found {
-			return nil, nil, nil
-		}
+	if _, found := state.Annotations[rdtActionName]; found {
+		currentOption = state.Annotations[rdtActionName]
+	}
+	if _, found := state.Annotations["rdtVisited"]; found {
+		return nil, nil, nil
 	}
 
 	// find a good follow-up state...
@@ -226,9 +222,9 @@ func (rdt RdtActuator) Perform(state *common.State, plan []planner.Action) {
 			annotations = make(map[string]string)
 		}
 		if option != "None" {
-			annotations["rdt_config"] = option
+			annotations[rdtActionName] = option
 		} else {
-			delete(annotations, "rdt_config")
+			delete(annotations, rdtActionName)
 		}
 		newPod.ObjectMeta.Annotations = annotations
 		_, err = rdt.k8s.CoreV1().Pods(res.ObjectMeta.Namespace).Update(context.TODO(), newPod, metaV1.UpdateOptions{})

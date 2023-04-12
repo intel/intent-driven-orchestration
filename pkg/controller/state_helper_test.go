@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/intel/intent-driven-orchestration/pkg/common"
 
 	appsV1 "k8s.io/api/apps/v1"
@@ -32,12 +34,27 @@ func createDummies(targetKind string, selector map[string]string, nPods int) (ru
 		pod := &coreV1.Pod{
 			TypeMeta: metaV1.TypeMeta{APIVersion: coreV1.SchemeGroupVersion.String()},
 			ObjectMeta: metaV1.ObjectMeta{
-				Name:      "my-deployment-" + strconv.Itoa(i),
-				Namespace: metaV1.NamespaceDefault,
-				Labels:    selector,
+				Name:        "my-deployment-" + strconv.Itoa(i),
+				Namespace:   metaV1.NamespaceDefault,
+				Labels:      selector,
+				Annotations: map[string]string{"sample-annotation": "hello"},
 			},
 			Spec: coreV1.PodSpec{
 				NodeName: "node0",
+				Containers: []coreV1.Container{
+					{
+						Resources: coreV1.ResourceRequirements{
+							Requests: map[coreV1.ResourceName]resource.Quantity{"foo": resource.MustParse("2")},
+							Limits:   map[coreV1.ResourceName]resource.Quantity{"foo": resource.MustParse("2")},
+						},
+					},
+					{
+						Resources: coreV1.ResourceRequirements{
+							Requests: map[coreV1.ResourceName]resource.Quantity{"bar": resource.MustParse("100Mi")},
+							Limits:   map[coreV1.ResourceName]resource.Quantity{"bar": resource.MustParse("1000Mi")},
+						},
+					},
+				},
 			},
 		}
 		pods = append(pods, pod)
@@ -112,11 +129,11 @@ func TestGetPodsForFailure(t *testing.T) {
 	deployment, pods := createDummies("Deployment", map[string]string{"foo": "bar"}, 1)
 	podErrors := map[string][]common.PodError{}
 	client, informer := k8sShim(deployment, pods)
-	res, _ := getPods(client, informer, "default/function", "Deployment", podErrors)
+	res, _, _, _ := getPods(client, informer, "default/function", "Deployment", podErrors)
 	if res != nil {
 		t.Errorf("Result should have been nil! - was: %v", res)
 	}
-	res, _ = getPods(client, informer, "default/function", "ReplicaSet", podErrors)
+	res, _, _, _ = getPods(client, informer, "default/function", "ReplicaSet", podErrors)
 	if res != nil {
 		t.Errorf("Result should have been nil! - was: %v", res)
 	}
@@ -129,12 +146,18 @@ func TestGetPodsForSanity(t *testing.T) {
 	deployment, pods := createDummies("Deployment", map[string]string{"foo": "bar"}, 1)
 	podErrors := map[string][]common.PodError{}
 	client, informer := k8sShim(deployment, pods)
-	podStates, hosts := getPods(client, informer, "default/my-deployment", "Deployment", podErrors)
+	podStates, annotations, resources, hosts := getPods(client, informer, "default/my-deployment", "Deployment", podErrors)
 	if len(podStates) != len(hosts) {
 		t.Errorf("All results should have the same length: %d, %d.", len(podStates), len(hosts))
 	}
 	if _, ok := podStates["my-deployment-0"]; !ok {
 		t.Errorf("Pod should have been included: %v", podStates)
+	}
+	if _, ok := annotations["sample-annotation"]; !ok {
+		t.Errorf("Annotation should have been set - was: %v", annotations)
+	}
+	if len(resources) != 4 || resources["0_foo_requests"] != "2000" || resources["1_bar_limits"] != "1048576000000" {
+		t.Errorf("Expected 4 resoure entries, one with foo another with bar resource requests & limits - was: %+v", resources)
 	}
 	if hosts[0] != "node0" {
 		t.Errorf("Host 0 should have been node0 - was: %v", hosts[0])
@@ -143,7 +166,7 @@ func TestGetPodsForSanity(t *testing.T) {
 	// ReplicaSet.
 	replicaSet, pods := createDummies("ReplicaSet", map[string]string{"foo": "bar"}, 1)
 	client, informer = k8sShim(replicaSet, pods)
-	podStates, hosts = getPods(client, informer, "default/my-deployment", "ReplicaSet", podErrors)
+	podStates, _, _, hosts = getPods(client, informer, "default/my-deployment", "ReplicaSet", podErrors)
 	if len(podStates) != len(hosts) {
 		t.Errorf("All results should have the same length: %d, %d.", len(podStates), len(hosts))
 	}
@@ -194,6 +217,9 @@ func TestGetCurrentStateForSanity(t *testing.T) {
 	}
 	if state.CurrentData["bla"]["node0"] != 10.0 {
 		t.Errorf("Host data should have been 10.0 - was %f.", state.CurrentData["bla"]["node0"])
+	}
+	if len(state.Resources) != 4 {
+		t.Errorf("Should see resources requests/limits for both containers - found %v", state.Resources)
 	}
 }
 

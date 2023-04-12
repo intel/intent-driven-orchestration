@@ -102,12 +102,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  namespace: default
   name: planner-role-binding
+  namespace: ido
 subjects:
   - kind: ServiceAccount
-    namespace: default
     name: planner-service-account
+    namespace: ido
 roleRef:
   kind: ClusterRole
   name: planner-role
@@ -122,9 +122,24 @@ metadata:
 spec:
   containers:
     - name: mongodb
-      image: mongo
+      image: mongo:6
       ports:
         - containerPort: 27017
+      securityContext:
+        capabilities:
+          drop: [ 'ALL' ]
+        seccompProfile:
+          type: RuntimeDefault
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      volumeMounts:
+        - name: mongo-tmp
+          mountPath: /tmp/
+        - name: data
+          mountPath: /data/db
       resources:
         limits:
           memory: "4000Mi"
@@ -132,18 +147,23 @@ spec:
         requests:
           memory: "256Mi"
           cpu: "500m"
+  volumes:
+    - name: mongo-tmp
+      emptyDir:
+    - name: data
+      emptyDir:
   tolerations:
-  - key: node-role.kubernetes.io/master
-    operator: Exists
-  - key: node-role.kubernetes.io/control-plane
-    operator: Exists
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
 ---
 apiVersion: v1
 kind: Service
@@ -179,17 +199,21 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: planner
-      image: 127.0.0.1:5000/planner:0.1.1
+      image: 127.0.0.1:5000/planner:0.2.0
       ports:
         - containerPort: 33333
       imagePullPolicy: Always
       args: [ "-config", "/config/defaults.json", "-v", "2" ]
       securityContext:
         capabilities:
-          drop:
-            - all
+          drop: [ 'ALL' ]
+        seccompProfile:
+          type: RuntimeDefault
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
         runAsNonRoot: true
         runAsUser: 10001
+        runAsGroup: 10001
       resources:
         limits:
           memory: "1000Mi"
@@ -207,17 +231,17 @@ spec:
         - name: MONGO_URL
           value: "mongodb://planner-mongodb-service:27017/"
   tolerations:
-  - key: node-role.kubernetes.io/master
-    operator: Exists
-  - key: node-role.kubernetes.io/control-plane
-    operator: Exists
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
   volumes:
     - name: planner-config
       configMap:

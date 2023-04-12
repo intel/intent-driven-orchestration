@@ -17,8 +17,8 @@
         "query": "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"
       },
       {
-        "name": "llc_value",
-        "query": "avg(rate(collectd_intel_pmu_counter_total{type=\"cache-misses\", exported_instance=~\"%s\"}[30s]))by(exported_instance)"
+        "name": "ipc_value",
+        "query": "avg(rate(collectd_intel_pmu_counter_total{type=\"instructions\",exported_instance=~\"%[1]s\"}[30s]))by(exported_instance)/avg(rate(collectd_intel_pmu_counter_total{type=\"cpu-cycles\",exported_instance=~\"%[1]s\"}[30s]))by(exported_instance)"
       }
     ]
   },

@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
 	"github.com/intel/intent-driven-orchestration/pkg/common"
@@ -28,6 +27,7 @@ type ActuatorClientStub struct {
 	clientConn *grpc.ClientConn
 	stopTime   time.Time
 	mutex      sync.Mutex
+	stream     *protobufs.ActuatorPlugin_NextStateClient
 }
 
 // newActuatorClientStub creates new client stub for actuator plugins
@@ -78,25 +78,27 @@ func toGrpcState(s *common.State) *protobufs.State {
 		},
 		CurrentPods: make(map[string]*protobufs.PodState),
 		CurrentData: make(map[string]*protobufs.DataEntry),
+		Resources:   make(map[string]string),
+		Annotations: make(map[string]string),
 	}
 
 	for k, v := range s.CurrentPods {
 		gs.CurrentPods[k] = &protobufs.PodState{
-			Resources:    make(map[string]string),
-			Annotations:  v.Annotations,
+
 			Availability: v.Availability,
 			NodeName:     v.NodeName,
 			State:        v.State,
 			QosClass:     v.QoSClass,
 		}
-		if v.Resources != nil {
-			for kr, vr := range v.Resources {
-				gs.CurrentPods[k].Resources[kr] = vr.String()
-			}
-		}
 	}
 	for k, v := range s.CurrentData {
 		gs.CurrentData[k] = &protobufs.DataEntry{Data: v}
+	}
+	for k, v := range s.Resources {
+		gs.Resources[k] = v
+	}
+	for k, v := range s.Annotations {
+		gs.Annotations[k] = v
 	}
 	return &gs
 }
@@ -115,9 +117,6 @@ func toGrpcProfile(v *common.Profile) *protobufs.Profile {
 	return &protobufs.Profile{
 		Key:         v.Key,
 		ProfileType: protobufs.ProfileType(v.ProfileType),
-		Query:       v.Query,
-		External:    v.External,
-		Address:     v.Address,
 	}
 }
 
@@ -178,22 +177,25 @@ func getNextStateResponse(r *protobufs.NextStateResponse) ([]common.State, []flo
 			},
 			CurrentPods: make(map[string]common.PodState),
 			CurrentData: make(map[string]map[string]float64),
+			Resources:   make(map[string]string),
+			Annotations: make(map[string]string),
 		}
 		for kp, vp := range v.CurrentPods {
 			s.CurrentPods[kp] = common.PodState{
-				Resources:    make(map[string]resource.Quantity),
-				Annotations:  vp.Annotations,
 				Availability: vp.Availability,
 				NodeName:     vp.NodeName,
 				State:        vp.State,
 				QoSClass:     vp.QosClass,
 			}
-			for kr, vr := range vp.Resources {
-				s.CurrentPods[kp].Resources[kr] = resource.MustParse(vr)
-			}
 		}
 		for kd, vd := range v.CurrentData {
 			s.CurrentData[kd] = vd.Data
+		}
+		for kd, vd := range v.Resources {
+			s.Resources[kd] = vd
+		}
+		for kd, vd := range v.Annotations {
+			s.Annotations[kd] = vd
 		}
 		states = append(states, s)
 	}
@@ -259,12 +261,28 @@ func (a *ActuatorClientStub) NextState(state *common.State, goal *common.State, 
 		klog.Error("NextState ended unexpectedly for the plugin (stop event)")
 		return []common.State{}, []float64{}, []planner.Action{}
 	}
-	response, err := a.client.NextState(context.Background(), getNextStateRequest(state, goal, profiles))
+	if a.stream == nil {
 
-	if err != nil {
-		klog.Error(err)
-		return []common.State{}, []float64{}, []planner.Action{}
+		stream, err := a.client.NextState(context.Background())
+		a.stream = &stream
+		if err != nil {
+			klog.Errorf("Failed to call: %v.", err)
+			return nil, nil, nil
+		}
 	}
+	request := getNextStateRequest(state, goal, profiles)
+	if err := (*a.stream).Send(request); err != nil {
+		klog.Errorf("Failed to send request: %v.", err)
+		return nil, nil, nil
+	}
+
+	// received stream from server
+	response, err := (*a.stream).Recv()
+	if err != nil {
+		klog.Errorf("Failed to get response: %v.", err)
+		return nil, nil, nil
+	}
+
 	return getNextStateResponse(response)
 }
 

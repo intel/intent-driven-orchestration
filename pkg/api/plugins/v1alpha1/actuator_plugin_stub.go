@@ -13,7 +13,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
@@ -142,12 +141,14 @@ func (s *ActuatorPluginStub) Stop() error {
 // Register registers the actuator plugin for the given name with ido controller.
 func (s *ActuatorPluginStub) Register() error {
 	klog.Infof("Actuator %s: performing plugin registration at %s:%d.", s.name, s.pluginManagerEndpoint, s.pluginManagerPort)
+	if s.port <= 0 || s.port > 65535 || s.pluginManagerPort <= 0 || s.pluginManagerPort > 65535 {
+		return fmt.Errorf("failed. Both ports need to be in a valid range: %d - %d", s.port, s.pluginManagerPort)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: make configurable.
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", s.pluginManagerEndpoint, s.pluginManagerPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		klog.ErrorS(err, "Cannot establish a connection to the plugin manager.")
-
 	}
 	retries := s.retries
 	for retries > 0 && err != nil && (conn == nil || conn.GetState() != connectivity.Ready) {
@@ -171,10 +172,9 @@ func (s *ActuatorPluginStub) Register() error {
 			SupportedVersions: s.version,
 		},
 	}
-
 	resp, err := client.Register(context.Background(), &req)
 	if err == nil && resp.Error != "" {
-		return fmt.Errorf("registration error: %s", resp.Error)
+		return fmt.Errorf("server side registration error: %s", resp.Error)
 	}
 	return err
 }
@@ -206,28 +206,26 @@ func toState(s *protobufs.State) *common.State {
 		},
 		CurrentPods: make(map[string]common.PodState),
 		CurrentData: make(map[string]map[string]float64),
+		Resources:   make(map[string]string),
+		Annotations: make(map[string]string),
 	}
 
 	for k, v := range s.CurrentPods {
-		var m map[string]resource.Quantity
-		if len(v.Resources) > 0 {
-			m = make(map[string]resource.Quantity)
-		}
 		gs.CurrentPods[k] = common.PodState{
-			Resources:    m,
-			Annotations:  v.Annotations,
 			Availability: v.Availability,
 			NodeName:     v.NodeName,
 			State:        v.State,
 			QoSClass:     v.QosClass,
 		}
-		for kr, vr := range v.Resources {
-			gs.CurrentPods[k].Resources[kr] = resource.MustParse(vr)
-		}
-
 	}
 	for k, v := range s.CurrentData {
 		gs.CurrentData[k] = v.Data
+	}
+	for k, v := range s.Resources {
+		gs.Resources[k] = v
+	}
+	for k, v := range s.Annotations {
+		gs.Annotations[k] = v
 	}
 	return &gs
 }
@@ -239,9 +237,6 @@ func toProfiles(profiles map[string]*protobufs.Profile) map[string]common.Profil
 		r[k] = common.Profile{
 			Key:         v.Key,
 			ProfileType: common.ProfileTypeFromText(v.ProfileType.String()),
-			Query:       v.Query,
-			External:    v.External,
-			Address:     v.Address,
 		}
 	}
 	return r
@@ -276,21 +271,30 @@ func getNextStateResponseServer(states []common.State, utilities []float64, acti
 }
 
 // NextState grpc callback for the nextState function of pluggable Actuators
-func (s *ActuatorPluginStub) NextState(_ context.Context, r *protobufs.NextStateRequest) (*protobufs.NextStateResponse, error) {
-	klog.V(2).InfoS("NextState GRPC call", "request", r)
-	return getNextStateResponseServer(s.nextStateFunc(toState(r.State), toState(r.Goal), toProfiles(r.Profiles))), nil
+func (s *ActuatorPluginStub) NextState(stream protobufs.ActuatorPlugin_NextStateServer) error {
+	klog.V(3).InfoS("NextState GRPC call", "request", stream)
+	for {
+		r, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+		response := getNextStateResponseServer(s.nextStateFunc(toState(r.State), toState(r.Goal), toProfiles(r.Profiles)))
+		if err := stream.Send(response); err != nil {
+			return err
+		}
+	}
 }
 
 // Perform grpc callback for the perform function of pluggable Actuators
 func (s *ActuatorPluginStub) Perform(_ context.Context, r *protobufs.PerformRequest) (*protobufs.Empty, error) {
-	klog.V(2).InfoS("Perform GRPC call", "request", r)
+	klog.V(3).InfoS("Perform GRPC call", "request", r)
 	s.performFunc(toState(r.State), toActions(r.Plan))
 	return &protobufs.Empty{}, nil
 }
 
 // Effect grpc callback for the Effect function of pluggable Actuators
 func (s *ActuatorPluginStub) Effect(_ context.Context, r *protobufs.EffectRequest) (*protobufs.Empty, error) {
-	klog.V(2).InfoS("Effect GRPC call", "request", r)
+	klog.V(3).InfoS("Effect GRPC call", "request", r)
 	s.effectFunc(toState(r.State), toProfiles(r.Profiles))
 	return &protobufs.Empty{}, nil
 }

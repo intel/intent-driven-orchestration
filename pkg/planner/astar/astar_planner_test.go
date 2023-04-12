@@ -167,8 +167,6 @@ func (scale scaleAction) NextState(state *common.State, goal *common.State, _ ma
 		}
 		for i := len(state.CurrentPods); i < numPods; i++ {
 			newState.CurrentPods["dummy_"+strconv.Itoa(j)] = common.PodState{
-				Resources:    nil,
-				Annotations:  nil,
 				Availability: 1.0,
 				NodeName:     "",
 				State:        "Running",
@@ -209,6 +207,63 @@ func (scale scaleAction) Perform(_ *common.State, plan []planner.Action) {
 func (scale scaleAction) Effect(state *common.State, _ map[string]common.Profile) {
 	for objective := range state.Intent.Objectives {
 		scale.actionTrigger <- objective + "_" + scale.Name()
+	}
+}
+
+// resourceAction represents a dummy action for manipulating resources.
+type resourceAction struct {
+	actionTrigger chan<- string
+}
+
+// newResourceAction initializes a resource actuator action.
+func newResourceAction(ch chan<- string) resourceAction {
+	return resourceAction{actionTrigger: ch}
+}
+
+func (res resourceAction) Name() string {
+	return "set_resources"
+}
+
+func (res resourceAction) Group() string {
+	return "scaling"
+}
+
+func (res resourceAction) NextState(state *common.State, _ *common.State, _ map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
+	var followUpStates []common.State
+	var utilities []float64
+	var actions []planner.Action
+
+	// Set the right CPU resource allocations if not already the case...
+	current, ok := state.Resources["cpu"]
+	if ok {
+		if current != "2" {
+			newState := state.DeepCopy()
+			newState.Resources["cpu"] = "2"
+
+			followUpStates = append(followUpStates, newState)
+			utilities = append(utilities, 0.0)
+			actions = append(actions, planner.Action{
+				Name:       res.Name(),
+				Properties: map[string]string{"resource": "done"}},
+			)
+		}
+	}
+
+	return followUpStates, utilities, actions
+}
+
+func (res resourceAction) Perform(_ *common.State, plan []planner.Action) {
+	for _, action := range plan {
+		if action.Name == res.Name() {
+			res.actionTrigger <- res.Name()
+			return
+		}
+	}
+}
+
+func (res resourceAction) Effect(state *common.State, _ map[string]common.Profile) {
+	for objective := range state.Intent.Objectives {
+		res.actionTrigger <- objective + "_" + res.Name()
 	}
 }
 
@@ -269,7 +324,7 @@ func (faulty faultyAction) Effect(_ *common.State, _ map[string]common.Profile) 
 // newTestPlanner
 func (f *aStarPlannerFixture) newTestPlanner(enableOpportunistic bool) *APlanner {
 	channel := f.triggerUpdate()
-	actuatorList := []actuators.Actuator{newScaleAction(channel), newRmAction(channel)}
+	actuatorList := []actuators.Actuator{newScaleAction(channel), newRmAction(channel), newResourceAction(channel)}
 	cfg := common.Config{Generic: common.GenericConfig{MongoEndpoint: controller.MongoURIForTesting}}
 	cfg.Planner.AStar.MaxCandidates = 10
 	cfg.Planner.AStar.MaxStates = 1000
@@ -315,6 +370,11 @@ func (f *aStarPlannerFixture) newTestPlannerGrpc(enableOpportunistic bool) *APla
 func newTestActuatorsGrpc(f *aStarPlannerFixture) []*plugins.ActuatorPluginStub {
 	channel := f.triggerUpdate()
 
+	setResource, err := createPlugin("set_res_alloc", 3340, newResourceAction(channel), 33333)
+	if err != nil {
+		klog.Errorf("Cannot create set resource plugin over grpc")
+		return []*plugins.ActuatorPluginStub{}
+	}
 	scale, err := createPlugin("scale_out", 3339, newScaleAction(channel), 33333)
 	if err != nil {
 		klog.Errorf("Cannot create scale plugin over grpc")
@@ -329,7 +389,7 @@ func newTestActuatorsGrpc(f *aStarPlannerFixture) []*plugins.ActuatorPluginStub 
 		klog.Errorf("Cannot create rm plugin over grpc")
 		return []*plugins.ActuatorPluginStub{}
 	}
-	return []*plugins.ActuatorPluginStub{scale, rmpod}
+	return []*plugins.ActuatorPluginStub{scale, rmpod, setResource}
 }
 
 type testCaseData struct {
@@ -487,15 +547,15 @@ func TestGetNodeForStateForSanity(t *testing.T) {
 
 	res, found := getNodeForState(*sg, state0)
 	if found == false || res != node1 { // node1 b/c we do traverse list back to front!
-		klog.Info("Whoops0")
+		t.Errorf("Should be false.")
 	}
 	res, found = getNodeForState(*sg, state1)
 	if found == false || res != node1 {
-		klog.Info("Whoops1")
+		t.Errorf("Should be false.")
 	}
 	_, found = getNodeForState(*sg, state2)
 	if found == true {
-		klog.Info("Whoops2")
+		t.Errorf("Should be true.")
 	}
 }
 
@@ -558,6 +618,51 @@ func TestCreatePlanForSanity(t *testing.T) {
 			res = testCase.planner.CreatePlan(start2, goal, profiles)
 			if len(res) != 1 {
 				// rm & done.
+				t.Errorf("Expected length of plan to be 1 - got %v", res)
+			}
+		})
+		testCase.stop()
+		testCase.planner.Stop()
+	}
+}
+
+// TestShortCutForSanity tests for sanity.
+func TestShortCutForSanity(t *testing.T) {
+	testCases := getPlannerTestCases(false)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			start := common.State{
+				Intent: common.Intent{
+					Key:        "test-my-objective",
+					Priority:   0.0,
+					TargetKey:  "my-deployment",
+					TargetKind: "Deployment",
+					Objectives: map[string]float64{
+						"p99latency": 100,
+					},
+				},
+				CurrentPods: map[string]common.PodState{"pod_0": {Availability: 1.0}},
+				CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
+				Resources:   map[string]string{"cpu": "4"},
+			}
+			goal := common.State{
+				Intent: common.Intent{
+					Key:        "goal",
+					Priority:   0.0,
+					TargetKey:  "",
+					TargetKind: "",
+					Objectives: map[string]float64{
+						"p99latency": 200,
+					}},
+				CurrentPods: nil,
+				CurrentData: nil,
+			}
+			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+			testCase.planner = testCase.plannerCrt(testCase.fixture)
+			testCase.stubs = testCase.stubsCrt(testCase.fixture)
+			res := testCase.planner.CreatePlan(start, goal, profiles)
+			if len(res) != 1 {
+				// set resource alloc! - TODO: check utilities in the overall state graph!
 				t.Errorf("Expected length of plan to be 1 - got %v", res)
 			}
 		})
@@ -782,10 +887,12 @@ func TestTriggerEffectForSanity(t *testing.T) {
 			time.Sleep(timeout * time.Millisecond)
 			testCase.fixture.waitGroup.Wait()
 			expected := map[string]bool{
-				"p99latency_set_replicas": true,
-				"p99latency_rm_pod":       true,
-				"p95latency_set_replicas": true,
-				"p95latency_rm_pod":       true,
+				"p99latency_set_replicas":  true,
+				"p99latency_rm_pod":        true,
+				"p99latency_set_resources": true,
+				"p95latency_set_replicas":  true,
+				"p95latency_rm_pod":        true,
+				"p95latency_set_resources": true,
 			}
 			for _, item := range testCase.fixture.triggeredUpdates {
 				if _, ok := expected[item]; !ok {

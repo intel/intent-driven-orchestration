@@ -87,7 +87,7 @@ func (p APlanner) generateStateGraph(start common.State, goal common.State, prof
 					queue = append(queue, stateNode)
 				}
 				sg.addEdge(current, stateNode, utils[i], actions[i])
-				if state.Compare(&goal, profiles) && !found {
+				if state.IsBetter(&goal, profiles) && !found {
 					// if current better than desired - add edge to goal.
 					sg.addEdge(stateNode, endNode, 0.0, planner.Action{Name: emptyActionName})
 					hasGoal = true
@@ -99,13 +99,12 @@ func (p APlanner) generateStateGraph(start common.State, goal common.State, prof
 	}
 	// if desired > goal we also add a shortcut path with the cost of the depth of the graph. Additionally, we add a
 	// little costs if any action in the current graph would have modified sth.
-	if start.Compare(&goal, profiles) && len(sg.successors) > 0 {
+	if start.IsBetter(&goal, profiles) && len(sg.successors) > 0 {
 		shortestPath, _ := solve(*sg, startNode, endNode, hEmpty, false, profiles)
 		if shortestPath != nil {
 			tmp := float64(len(shortestPath) - 2)
 			lastItem := shortestPath[len(shortestPath)-2]
-			// TODO: not only should this look at len of PODs but also if e.g. resource allocations actually changed.
-			if len(start.CurrentPods) > len(lastItem.value.(*common.State).CurrentPods) {
+			if len(start.CurrentPods) > len(lastItem.value.(*common.State).CurrentPods) || lastItem.value.(*common.State).LessResources(&start) {
 				// shortest path already brought a change, so we should make a bit more unlikely to take the shortcut.
 				tmp *= 1.01
 			}
@@ -171,7 +170,7 @@ func (p APlanner) CreatePlan(current common.State, desired common.State, profile
 		klog.Warning("No path to goal state possible!")
 		if p.cfg.Planner.AStar.OpportunisticCandidates > 0 {
 			klog.Infof("Opportunistic planning is enabled - will add %d states with closest distance to the "+
-				" desired state to the state graph.", p.cfg.Planner.AStar.OpportunisticCandidates)
+				"desired state to the state graph.", p.cfg.Planner.AStar.OpportunisticCandidates)
 			sg = p.addAdditionalStates(sg, s0, g0, profiles)
 			_, actions := solve(sg, s0, g0, h, true, profiles)
 			plan = actions

@@ -58,13 +58,24 @@ Step 1) add the CRDs:
 
 Step 2) deploy the planner (make sure to adapt the configs to your environment):
 
-    $ k apply -f artefacts/deploy/manifest.yaml
+    $ k create ns ido
+    $ k apply -n ido -f artefacts/deploy/manifest.yaml
 
 Step 3) deploy the actuators of interest using:
 
-    $ k apply -f plugins/<name>/<name>.yaml
+    $ k apply -n ido -f plugins/<name>/<name>.yaml
 
 These steps should be followed by setting up your default profiles (if needed).
+
+We recommend the usage of a service mesh like [Linkerd](https://linkerd.io/) or [Istio](https://istio.io/) to ensure
+encryption and monitoring capabilities for the subcomponents of the planning framework themselves. After creating the
+namespace, enable auto-injection; For Linkerd do:
+
+    $ k annotate ns ido linkerd.io/inject=enabled
+
+or for Istio use:
+
+    $ k label namespace ido istio-injection=enabled --overwrite
 
 For more information on running and configuring the planner see the [getting started](docs/getting_started.md) guide.
 

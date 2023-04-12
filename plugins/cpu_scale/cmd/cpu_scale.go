@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/signal"
 
+	"k8s.io/client-go/rest"
+
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
 
 	val "github.com/intel/intent-driven-orchestration/plugins"
@@ -27,39 +29,42 @@ var (
 	config     string
 )
 
-type ScaleOutPluginHandler struct {
+type CPUScalePluginHandler struct {
 	actuator actuators.Actuator
 }
 
-func (s *ScaleOutPluginHandler) NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
-	klog.InfoS("Invoked ScaleOut Next State Callback")
+func (s *CPUScalePluginHandler) NextState(state *common.State, goal *common.State,
+	profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
+	klog.InfoS("From plugin: Invoked CPUScale Next State Callback")
 	return s.actuator.NextState(state, goal, profiles)
 }
 
-func (s *ScaleOutPluginHandler) Perform(state *common.State, plan []planner.Action) {
-	klog.InfoS("Invoked ScaleOut Perform Callback")
+func (s *CPUScalePluginHandler) Perform(state *common.State, plan []planner.Action) {
+	klog.InfoS("From plugin: Invoked CPUScale Perform Callback")
 	s.actuator.Perform(state, plan)
 }
 
-func (s *ScaleOutPluginHandler) Effect(state *common.State, profiles map[string]common.Profile) {
-	klog.InfoS("Invoked ScaleOut Effect Callback")
+func (s *CPUScalePluginHandler) Effect(state *common.State, profiles map[string]common.Profile) {
+	klog.InfoS("From plugin: Invoked CPUScale Effect Callback")
 	s.actuator.Effect(state, profiles)
 }
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
+
 	tmp, err := common.LoadConfig(config, func() interface{} {
-		return &scaling.ScaleOutConfig{}
+		return &scaling.CPUScaleConfig{}
 	})
 
 	if err != nil {
 		klog.Fatalf("Error loading configuration for actuator: %s", err)
 	}
 
-	cfg := tmp.(*scaling.ScaleOutConfig)
+	cfg := tmp.(*scaling.CPUScaleConfig)
 
-	err = isValidConf(cfg.MaxPods, cfg.MaxProActiveScaleOut, cfg.ProActiveLatencyFactor)
+	err = isValidConf(cfg.CPUMax, cfg.CPURounding, cfg.MaxProActiveCPU,
+		cfg.CPUSafeGuardFactor, cfg.ProActiveLatencyPercentage)
 	if err != nil {
 		klog.Fatalf("Error on configuration for actuator: %s", err)
 	}
@@ -71,34 +76,46 @@ func main() {
 	}
 
 	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	var config *rest.Config
+	config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
+
 	if err != nil {
 		klog.Fatalf("Error getting Kubernetes config: %s", err)
 	}
-	clusterClient, err := kubernetes.NewForConfig(config)
+
+	var clusterClient *kubernetes.Clientset
+	clusterClient, err = kubernetes.NewForConfig(config)
+
 	if err != nil {
 		klog.Fatalf("Error creating Kubernetes cluster client: %s", err)
 	}
 
-	p := &ScaleOutPluginHandler{
-		actuator: scaling.NewScaleOutActuator(clusterClient, mt, *cfg),
+	p := &CPUScalePluginHandler{
+		actuator: scaling.NewCPUScaleActuator(clusterClient, mt, *cfg),
 	}
-	stub := plugins.NewActuatorPluginStub(p.actuator.Name(), cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
+	stub := plugins.NewActuatorPluginStub(p.actuator.Name(), cfg.Endpoint, cfg.Port,
+		cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
 	stub.SetNextStateFunc(p.NextState)
 	stub.SetPerformFunc(p.Perform)
 	stub.SetEffectFunc(p.Effect)
 	err = stub.Start()
+
 	if err != nil {
 		klog.Fatalf("Error starting plugin server: %s", err)
 	}
+
 	err = stub.Register()
+
 	if err != nil {
 		klog.Fatalf("Error registering plugin: %s", err)
 	}
+
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
 	<-signalChan
+
 	err = stub.Stop()
+
 	if err != nil {
 		klog.Fatalf("Error stopping plugin server: %s", err)
 	}
@@ -109,16 +126,25 @@ func init() {
 	flag.StringVar(&config, "config", "", "Path to configuration file.")
 }
 
-func isValidConf(confMaxPods, confMaxProactiveScaleOut int, confProActiveLatencyFactor float64) error {
-	if confMaxPods <= 0 || confMaxPods > 128 {
-		return fmt.Errorf("invalid pods number")
+func isValidConf(confCPUMax, confCPURounding, confMaxProActiveCPU int64,
+	confCPUSafeGuardFactor, configProActiveLatencyPercentage float64) error {
+	if confCPUMax <= 0 || confCPUMax > int64(1000*1024) {
+		return fmt.Errorf("invalid cpu numbers")
 	}
 
-	if confMaxProactiveScaleOut < 0 || confMaxProactiveScaleOut > confMaxPods {
+	if confCPURounding <= 0 || confCPURounding > 1000 || confCPURounding%10 != 0 {
+		return fmt.Errorf("invalid round base")
+	}
+
+	if confCPUSafeGuardFactor <= 0 || confCPUSafeGuardFactor > 1 {
+		return fmt.Errorf("invalid safeguard factor")
+	}
+
+	if confMaxProActiveCPU < 0 || confMaxProActiveCPU > confCPUMax {
 		return fmt.Errorf("invalid max proactive value")
 	}
 
-	if confProActiveLatencyFactor < 0 || confProActiveLatencyFactor > 1 {
+	if configProActiveLatencyPercentage < 0 || configProActiveLatencyPercentage > 1 {
 		return fmt.Errorf("invalid fraction value for proactive latency")
 	}
 

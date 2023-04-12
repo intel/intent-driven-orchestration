@@ -3,8 +3,6 @@ package common
 import (
 	"reflect"
 	"testing"
-
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // TestProfileTypeFromTextForSanity tests for success.
@@ -66,8 +64,8 @@ func TestDeepCopyStateForSuccess(t *testing.T) {
 	state.DeepCopy()
 }
 
-// TestCompareStateForSuccess tests for success.
-func TestCompareStateForSuccess(t *testing.T) {
+// TestIsBetterStateForSuccess tests for success.
+func TestIsBetterStateForSuccess(t *testing.T) {
 	s0 := State{
 		Intent: Intent{
 			Key:        "default/foo",
@@ -83,7 +81,22 @@ func TestCompareStateForSuccess(t *testing.T) {
 		"p99": {ProfileType: ProfileTypeFromText("latency")},
 	}
 
-	s0.Compare(&s2, profiles)
+	s0.IsBetter(&s2, profiles)
+}
+
+// TestLessResourcesForSuccess tests for success.
+func TestLessResourcesForSuccess(t *testing.T) {
+	s0 := State{
+		Resources: map[string]string{
+			"0_cpu": "1",
+		},
+	}
+	s1 := State{
+		Resources: map[string]string{
+			"0_cpu": "2",
+		},
+	}
+	s0.LessResources(&s1)
 }
 
 // Tests for failure.
@@ -183,14 +196,14 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 			},
 		},
 		CurrentPods: map[string]PodState{"pod_0": {
-			Resources:    map[string]resource.Quantity{"cpu": resource.MustParse("100Mi")},
-			Annotations:  map[string]string{"llc": "0x1"},
 			Availability: 0.7,
 			NodeName:     "host0",
 			State:        "Running",
 		},
 		},
 		CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
+		Resources:   map[string]string{"0_cpu": "100Mi"},
+		Annotations: map[string]string{"llc": "0x1"},
 	}
 	res := state.DeepCopy()
 	res.Intent.Key = "default/bar"
@@ -199,8 +212,8 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 	res.Intent.TargetKind = "ReplicaSet"
 	res.Intent.Objectives["p99"] = 2.0
 	res.CurrentPods["pod_1"] = PodState{Availability: 1.0}
-	res.CurrentPods["pod_0"].Annotations["llc"] = "0x2"
 	res.CurrentData["cpu_value"]["host0"] = 10.0
+	res.Annotations["llc"] = "0x2"
 
 	if state.Intent.Key != "default/foo" || res.Intent.Key != "default/bar" {
 		t.Errorf("Key deepcopy failed.")
@@ -220,7 +233,7 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 	if state.CurrentPods["pod_0"].Availability != 0.7 || res.CurrentPods["pod_0"].Availability != 0.7 || res.CurrentPods["pod_1"].Availability != 1.0 {
 		t.Errorf("CurrentPods deepcopy failed.")
 	}
-	if state.CurrentPods["pod_0"].Annotations["llc"] != "0x1" || res.CurrentPods["pod_0"].Annotations["llc"] != "0x2" || res.CurrentPods["pod_1"].Availability != 1.0 {
+	if state.Annotations["llc"] != "0x1" || res.Annotations["llc"] != "0x2" || res.CurrentPods["pod_1"].Availability != 1.0 {
 		t.Errorf("CurrentPods deepcopy failed.")
 	}
 	if state.CurrentData["cpu_value"]["host0"] != 20.0 || res.CurrentData["cpu_value"]["host0"] != 10.0 {
@@ -235,7 +248,7 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 		TargetKind: "Deployment",
 		Objectives: map[string]float64{"p99latency": 40},
 	},
-		CurrentPods: map[string]PodState{"dummy_0": {Resources: nil, Annotations: nil, Availability: 1.0, NodeName: "", State: "Running"}},
+		CurrentPods: map[string]PodState{"dummy_0": {Availability: 1.0, NodeName: "", State: "Running"}},
 		CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20}},
 	}
 	tmp1 := tmp0.DeepCopy()
@@ -244,8 +257,8 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 	}
 }
 
-// TestCompareStateForSanity tests for sanity.
-func TestCompareStateForSanity(t *testing.T) {
+// TestIsBetterStateForSanity tests for sanity.
+func TestIsBetterStateForSanity(t *testing.T) {
 	s0 := State{
 		Intent: Intent{
 			Key:        "default/foo",
@@ -256,6 +269,9 @@ func TestCompareStateForSanity(t *testing.T) {
 				"p99":          100,
 				"availability": 0.99,
 			},
+		},
+		Resources: map[string]string{
+			"cpu": "1",
 		},
 	}
 	s1 := s0.DeepCopy()
@@ -276,20 +292,61 @@ func TestCompareStateForSanity(t *testing.T) {
 	}
 
 	// deep-copy should be equal.
-	res := s0.Compare(&s1, profiles)
+	res := s0.IsBetter(&s1, profiles)
 	if res != true {
 		t.Errorf("Deepcopy should lead to true: %v - %v.", s0, s1)
 	}
 	// s2 and s4 should lead to true
-	if s2.Compare(&s0, profiles) != true || s4.Compare(&s0, profiles) != true {
+	if s2.IsBetter(&s0, profiles) != true || s4.IsBetter(&s0, profiles) != true {
 		t.Errorf("Should be better as s0: %v - %v.", s0, s1)
 	}
 	// s3 and s5 should lead to false
-	if s3.Compare(&s0, profiles) != false || s5.Compare(&s0, profiles) != false {
+	if s3.IsBetter(&s0, profiles) != false || s5.IsBetter(&s0, profiles) != false {
 		t.Errorf("Should be worse than s0: %v - %v.", s0, s1)
 	}
 	// s6 does not even have all the objectives defined.
-	if s6.Compare(&s0, profiles) != false {
+	if s6.IsBetter(&s0, profiles) != false {
 		t.Errorf("Should be uncomparable --> false.")
+	}
+}
+
+// TestLessResourcesForSanity tests for sanity.
+func TestLessResourcesForSanity(t *testing.T) {
+	s0 := State{
+		Resources: map[string]string{
+			"0_cpu": "1024",
+			"1_cpu": "1024",
+		},
+	}
+	s1 := s0.DeepCopy()
+	s2 := s1.DeepCopy()
+	s2.Resources["0_cpu"] = "2048"
+	s3 := s0.DeepCopy()
+	s3.Resources["2_cpu"] = "2"
+
+	// deep-copy should be equal.
+	res := s0.LessResources(&s1)
+	if res != true {
+		t.Errorf("Should be true, was false: %+v - %+v.", s0, s1)
+	}
+	// s1 has less than s2.
+	res = s1.LessResources(&s2)
+	if res != true {
+		t.Errorf("Should be true, was false: %+v - %+v.", s0, s1)
+	}
+	// s1 has less than s2.
+	res = s2.LessResources(&s1)
+	if res != false {
+		t.Errorf("Should be false, was true: %+v - %+v.", s0, s1)
+	}
+	// s0 has less resources defined as s3
+	res = s0.LessResources(&s3)
+	if res != true {
+		t.Errorf("Should be true, was false: %+v - %+v.", s0, s1)
+	}
+	// s3 has more resources defined as s0
+	res = s3.LessResources(&s0)
+	if res != false {
+		t.Errorf("Should be false, was true: %+v - %+v.", s0, s1)
 	}
 }

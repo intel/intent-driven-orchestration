@@ -64,8 +64,6 @@ type Intent struct {
 
 // PodState represents the state of an POD.
 type PodState struct {
-	Resources    map[string]resource.Quantity
-	Annotations  map[string]string
 	Availability float64
 	NodeName     string
 	State        string
@@ -77,6 +75,8 @@ type State struct {
 	Intent      Intent
 	CurrentPods map[string]PodState
 	CurrentData map[string]map[string]float64
+	Resources   map[string]string
+	Annotations map[string]string
 }
 
 // DeepCopy creates a deep copy of a state.
@@ -98,36 +98,38 @@ func (one *State) DeepCopy() State {
 		objective,
 		map[string]PodState{},
 		map[string]map[string]float64{},
+		map[string]string{},
+		map[string]string{},
 	}
 
 	// copy over pod states.
 	pods := map[string]PodState{}
 	for k, v := range one.CurrentPods {
 		state := PodState{
-			// leave this as is - init with nil here and subsequent setting hurts performance :-(
-			Resources:    map[string]resource.Quantity{},
-			Annotations:  map[string]string{},
-			Availability: v.Availability,
-			NodeName:     v.NodeName,
-			State:        v.State,
-		}
-		if one.CurrentPods[k].Resources == nil {
-			state.Resources = nil
-		} else {
-			for rk, rv := range v.Resources {
-				state.Resources[rk] = rv.DeepCopy()
-			}
-		}
-		if one.CurrentPods[k].Annotations == nil {
-			state.Annotations = nil
-		} else {
-			for ak, av := range v.Annotations {
-				state.Annotations[ak] = av
-			}
+			v.Availability,
+			v.NodeName,
+			v.State,
+			v.QoSClass,
 		}
 		pods[k] = state
 	}
 	tmp.CurrentPods = pods
+
+	// annotations and resources
+	if one.Resources == nil {
+		tmp.Resources = nil
+	} else {
+		for rk, rv := range one.Resources {
+			tmp.Resources[rk] = rv
+		}
+	}
+	if one.Annotations == nil {
+		tmp.Annotations = nil
+	} else {
+		for ak, av := range one.Annotations {
+			tmp.Annotations[ak] = av
+		}
+	}
 
 	// and all the rest.
 	for k := range one.CurrentData {
@@ -146,15 +148,15 @@ func (one *State) Distance(another *State, profiles map[string]Profile) float64 
 	for key, val := range one.Intent.Objectives {
 		squaresSum += math.Pow(val-another.Intent.Objectives[key], 2)
 	}
-	if one.Compare(another, profiles) && squaresSum != 0.0 {
+	if one.IsBetter(another, profiles) && squaresSum != 0.0 {
 		// we should favor states which are closer to the goal...
 		return -1 / math.Sqrt(squaresSum)
 	}
 	return math.Sqrt(squaresSum)
 }
 
-// Compare one state to another - returns true if better.
-func (one *State) Compare(another *State, profiles map[string]Profile) bool {
+// IsBetter compares the objectives of one state to another - returns true if all latency related objective targets are smaller or equal, and all others are larger or equal.
+func (one *State) IsBetter(another *State, profiles map[string]Profile) bool {
 	if len(one.Intent.Objectives) != len(another.Intent.Objectives) {
 		return false
 	}
@@ -174,5 +176,27 @@ func (one *State) Compare(another *State, profiles map[string]Profile) bool {
 			}
 		}
 	}
+	return res
+}
+
+// LessResources contrast the resources and returns true if one state has less resource than another.
+func (one *State) LessResources(another *State) bool {
+	res := false
+	for k, v := range one.Resources {
+		tmp, ok := another.Resources[k]
+		if !ok {
+			return false
+		}
+		oneVal := resource.MustParse(v)
+		oneFloat := oneVal.AsApproximateFloat64()
+		anotherVal := resource.MustParse(tmp)
+		anotherFloat := anotherVal.AsApproximateFloat64()
+		if oneFloat <= anotherFloat {
+			res = true
+		} else {
+			return false
+		}
+	}
+
 	return res
 }

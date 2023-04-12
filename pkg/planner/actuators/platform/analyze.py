@@ -3,8 +3,8 @@
 Analytics script to determine the effect an RDT configuration option has on
 given workload.
 
-WARNING: These scripts are for proof of concept only; For production system
-please consider using more advanced analytical capabilities.
+WARNING: These scripts are for proof of concept only and offer no guarantee
+of security or robustness. Do not use in a production environment.
 """
 
 import argparse
@@ -37,12 +37,7 @@ logging.basicConfig(format=FORMAT, level=logging.INFO)
 
 def _parse_pods(pod_data):
     for _, item in pod_data.items():
-        if 'annotations' in item:
-            if item['annotations'] and 'rdt_config' in item['annotations']:
-                # XXX: assuming all pods have same annotation for now.
-                return item['annotations']['rdt_config'], item['qosclass']
-            return None, item['qosclass']
-        return None, item['qosclass']
+        return item['qosclass']
 
 
 def _parse_load(data, name):
@@ -75,18 +70,24 @@ def get_data(args):
                     {'current_objectives': 1,
                      'data': 1,
                      'pods': 1,
+                     'annotations': 1,
                      'timestamp': 1,
                      '_id': 0}, sort=[('_id', -1)], limit=args.max_vals)
     for item in res:
-        if item['pods'] is None:
+        if 'pods' not in item or \
+                item['pods'] is None or len(item['pods']) == 0:
             continue
         tmp[item['timestamp']] = item['current_objectives']
-        # TODO: resources.
-        rdt, qos = _parse_pods(item['pods'])
+        qos = _parse_pods(item['pods'])
+        rdt = 'None'
+        if 'annotations' in item and item['annotations'] and \
+                'configureRDT' in item['annotations']:
+            # XXX: assuming all pods have same annotation for now.
+            rdt = item['annotations']['configureRDT']
         tmp[item['timestamp']]['load'] = _parse_load(item['data'], 'cpu_value')
-        tmp[item['timestamp']]['llc_value'] = _parse_load(item['data'],
-                                                          'llc_value')
-        tmp[item['timestamp']]['rdt_config'] = rdt or 'None'
+        tmp[item['timestamp']]['ipc_value'] = _parse_load(item['data'],
+                                                          'ipc_value')
+        tmp[item['timestamp']]['rdt_config'] = rdt
         tmp[item['timestamp']]['qosclass'] = qos
         tmp[item['timestamp']]['replicas'] = len(
             ['0' for pod in item['pods'].values()
@@ -103,7 +104,7 @@ def get_data(args):
                                item not in (args.latency,
                                             'rdt_config',
                                             'load',
-                                            'llc_value',
+                                            'ipc_value',
                                             'qosclass',
                                             'replicas')],
                       inplace=True)
@@ -207,10 +208,10 @@ def train_dt(data, args):
 
     feat = data[features]
     target = data[args.latency]
-    if len(target) >= 15:
-        clf = ensemble.RandomForestRegressor(n_estimators=50,
-                                             warm_start=True,
-                                             n_jobs=N_JOBS)
+    if len(target) >= args.min_vals:
+        clf = ensemble.ExtraTreesRegressor(n_estimators=50,
+                                           warm_start=True,
+                                           n_jobs=N_JOBS)
         clf.fit(feat, target)
 
         image = _plot_results(clf, feat, features, feat_map, args)
@@ -250,6 +251,7 @@ class Arguments:
     name: str
     latency: str
     max_vals: int
+    min_vals: int
     mongo_uri: str
 
     @staticmethod
@@ -261,6 +263,7 @@ class Arguments:
             name=args['name'],
             latency=args['latency'],
             max_vals=int(args['max_vals']),
+            min_vals=int(args['min_vals']),
             mongo_uri=args['mongo_uri'],
         )
 
@@ -271,8 +274,10 @@ if __name__ == '__main__':
                         help='Name of the objective.')
     parser.add_argument('latency', type=str,
                         help='Name of the latency objective.')
-    parser.add_argument('--max_vals', type=int, default=250,
+    parser.add_argument('--max_vals', type=int, default=500,
                         help='Limits the number of records to retrieve.')
+    parser.add_argument('--min_vals', type=int, default=15,
+                        help='Minimum required values to train model.')
     parser.add_argument('--mongo_uri', type=str,
                         default=os.environ.get('MONGO_URL',
                                                'mongodb://localhost:27100'),

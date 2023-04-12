@@ -216,11 +216,12 @@ func TestRdtNextStateForSanity(t *testing.T) {
 			},
 		},
 		CurrentPods: map[string]common.PodState{
-			"pod_0": {Annotations: map[string]string{"foo": "bar"}},
+			"pod_0": {},
 		},
 		CurrentData: map[string]map[string]float64{
 			"cpu_value": {"node": 10.0},
 		},
+		Annotations: map[string]string{"foo": "bar"},
 	}
 	goal := common.State{}
 	goal.Intent.Priority = 1.0
@@ -238,10 +239,8 @@ func TestRdtNextStateForSanity(t *testing.T) {
 		t.Errorf("Expected one entry each: %v, %v, %v.", states, utils, actions)
 	}
 	// check if annotations are set.
-	for _, pod := range states[0].CurrentPods {
-		if _, found := pod.Annotations["rdt_visited"]; !found {
-			t.Errorf("Expected the temp blocker in annotation:  %v.", pod.Annotations)
-		}
+	if _, found := states[0].Annotations["rdtVisited"]; !found {
+		t.Errorf("Expected the temp blocker in annotation:  %v.", states[0].Annotations)
 	}
 	// check if resulting action match.
 	if actions[0].Name != actuator.Name() || actions[0].Properties.(map[string]string)["option"] != "option_b" {
@@ -280,15 +279,15 @@ func TestRdtNextStateForSanity(t *testing.T) {
 	}
 
 	// we do not want to revisit this action if we've already looked at it.
-	state.CurrentPods["pod_0"].Annotations["rdt_visited"] = ""
+	state.Annotations["rdtVisited"] = ""
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
 	if len(actions) > 0 {
 		t.Errorf("Expected no actions - got: %v.", actions)
 	}
 
 	// we do not expect to set an option if it is already set...
-	state.CurrentPods["pod_0"].Annotations["rdt_config"] = "option_a"
-	delete(state.CurrentPods["pod_0"].Annotations, "rdt_visited")
+	state.Annotations["configureRDT"] = "option_a"
+	delete(state.Annotations, "rdt_visited")
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
 	if len(actions) != 0 {
 		t.Errorf("Expected no actions - got: %v.", actions)
@@ -327,11 +326,12 @@ func BenchmarkNextState(b *testing.B) {
 			},
 		},
 		CurrentPods: map[string]common.PodState{
-			"pod_0": {Annotations: map[string]string{"foo": "bar"}},
+			"pod_0": {},
 		},
 		CurrentData: map[string]map[string]float64{
 			"cpu_value": {"node": 10.0},
 		},
+		Annotations: map[string]string{"foo": "bar"},
 	}
 	goal := common.State{}
 	goal.Intent.Priority = 1.0

@@ -27,8 +27,9 @@ func (d dummyTracer) GetEffect(_ string, _ string, profileName string, _ int, co
 		return nil, fmt.Errorf("nothing here")
 	}
 	tmp := constructor().(*ScaleOutEffect)
-	tmp.ReplicaRange = []int{1, 7}
-	tmp.Popt = []float64{3.75, 0.005, 3.0}
+	tmp.ThroughputScale = [2]float64{0.01, 0.0}
+	tmp.ReplicaRange = [2]int{1, 7}
+	tmp.Popt = [5]float64{0.01, 1, 1, 4, 1}
 	return tmp, nil
 }
 

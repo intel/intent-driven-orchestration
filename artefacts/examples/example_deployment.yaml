@@ -22,6 +22,16 @@ spec:
           env:
             - name: WORKERS
               value: "2"
+          securityContext:
+            capabilities:
+              drop: [ 'ALL' ]
+            seccompProfile:
+              type: RuntimeDefault
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
       restartPolicy: Always
 ---
 apiVersion: v1

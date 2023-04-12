@@ -17,7 +17,8 @@ cycle:
 ![plugins, actuator-plugins, plugin-manager](fig/plugin_manager.png)
 
 After successful registration, the planner will call the functions **_NextState_**, **_Perform_** and **_Effect_** via
-[gRPC](https://grpc.io/).
+[gRPC](https://grpc.io/). The bi-directional streaming is implemented on **_NextState_** which has demonstrated an 
+improvement on the planner's performance.
 
 ## Implementing new plugins
 

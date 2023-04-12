@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/intel/intent-driven-orchestration/pkg/planner"
-
-	"k8s.io/klog/v2"
 )
 
 // Tests for success.
@@ -36,7 +34,7 @@ func TestToDotForSuccess(t *testing.T) {
 	g := newStateGraph()
 	err := g.toDot([]Node{}, "tmp.dot")
 	if err != nil {
-		klog.Errorf("Error to use the tmp file: %s", err)
+		t.Errorf("Error to use the tmp file: %s", err)
 	}
 	err = os.Remove("tmp.dot")
 	if err != nil {
@@ -89,7 +87,7 @@ func TestToDotForSanity(t *testing.T) {
 
 	err := g.toDot([]Node{start, goal}, "tmp.dot")
 	if err != nil {
-		klog.Errorf("Failed to write DOT file: %s", err)
+		t.Errorf("Failed to write DOT file: %s", err)
 	}
 	err = os.Remove("tmp.dot")
 	if err != nil {

@@ -1,6 +1,7 @@
 package astar
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,6 +14,17 @@ import (
 // Node within a state graph.
 type Node struct {
 	value interface{}
+}
+
+// StringRepresentation generates a representation of the node's value.
+func (state *Node) StringRepresentation() string {
+	// try to marshall into a JSON like format...
+	tmp, err := json.MarshalIndent(state.value, "", "\t")
+	if err != nil {
+		// ...if it doesn't work use %+v.
+		return fmt.Sprintf("%+v", state.value)
+	}
+	return strings.Replace(strings.Replace(string(tmp), "\"", "'", -1), "\n", "\\l", -1)
 }
 
 // edge within of a state graph.
@@ -59,19 +71,18 @@ func (sg *stateGraph) toDot(highlight []Node, fileName string) error {
 	}
 
 	var sb strings.Builder
-
-	j := 0
 	sb.WriteString("digraph plan {\n")
 	for node, edges := range sg.successors {
-		tmp := fmt.Sprintf("\"%v\" [label=\"%+v\" shape=box]; \n", node.value, node.value)
+		tmp := fmt.Sprintf("\"%v\" [label=\"%v\\l\" shape=box]; \n", node.value, node.StringRepresentation())
 		sb.WriteString(tmp)
 		for _, edge := range edges {
 			color := "#262626"
 			width := 1
-			if j < (len(highlight)-1) && edge.node == highlight[j+1] && node == highlight[j] {
-				color = "#0068b5"
-				width = 2
-				j++
+			for j := range highlight {
+				if j < (len(highlight)-1) && edge.node == highlight[j+1] && node == highlight[j] {
+					color = "#0068b5"
+					width = 2
+				}
 			}
 			tmp := fmt.Sprintf("\"%v\" -> \"%v\" [label=\"%v - %f\" color=\"%s\" penwidth=%d];\n",
 				node.value, edge.node.value, edge.action, edge.utility, color, width)

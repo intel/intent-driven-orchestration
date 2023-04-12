@@ -13,6 +13,10 @@ logging.basicConfig(level=logging.INFO)
 
 TEST_DATA = {
     'default/function-intents': {
+        'None': {
+            'default/p99': 20.0,
+            'default/p95': 17.0
+        },
         'option_a': {
             'default/p99': 10.0,
             'default/p95': 7.5
@@ -41,12 +45,12 @@ def predict_app(environ, start_response):
     target = body['target']
     option = body['option']
     load = body['load']
-    llc_load = body['llc_value']
+    ipc = body['ipc_value']
     qos_class = body['class']
     replicas = body['replicas']
 
     if load is None or qos_class is None or replicas is None \
-            or llc_load is None:
+            or ipc is None:
         sys.exit('missing values!')
 
     res = -1.0
@@ -68,7 +72,7 @@ def serve(args):
     Launch a wsgi ref server.
     """
     logging.info('Listening on port: %s', int(args.port))
-    with make_server('', args.port, predict_app) as httpd:
+    with make_server('127.0.0.1', args.port, predict_app) as httpd:
         httpd.serve_forever()
 
 

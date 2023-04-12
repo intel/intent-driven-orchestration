@@ -136,6 +136,36 @@ func TestActuatorStubNextState(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func BenchmarkActuatorStubNextState(b *testing.B) {
+	pm := NewPluginManagerServer([]actuators.Actuator{}, "localhost", 3333)
+	assert.NotNil(b, pm)
+	s := NewActuatorPluginStub("test-actuator-1", "localhost", 3334, "localhost", 3333)
+	assert.NotNil(b, s)
+	s.SetNextStateFunc(mockedNextStateFunc) //set new call back function
+	err := pm.Start()
+	assert.Nil(b, err)
+	err = s.Start()
+	assert.Nil(b, err)
+	err = s.Register()
+	assert.Nil(b, err)
+
+	f := func(act actuators.Actuator) {
+		vSet := generateActuatorValidationSet()
+		e, u, a := act.NextState(vSet.start, vSet.goal, vSet.profiles)
+		_, _, _ = e, u, a
+	}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		pm.Iter(f)
+	}
+	b.StopTimer()
+
+	err = s.Stop()
+	assert.Nil(b, err)
+	err = pm.Stop()
+	assert.Nil(b, err)
+}
+
 func TestActuatorPerform(t *testing.T) {
 	pm := NewPluginManagerServer([]actuators.Actuator{}, "localhost", 3333)
 	assert.NotNil(t, pm)

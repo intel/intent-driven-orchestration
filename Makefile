@@ -2,8 +2,9 @@ BINARY_NAME=planner
 SCALEOUT_PLUGIN=scale_out
 RMPOD_PLUGIN=rm_pod
 RDT_PLUGIN=rdt
+CPU_PLUGIN=cpu_scale
 GO_CILINT_CHECKERS=errcheck,goimports,gosec,gosimple,govet,ineffassign,nilerr,revive,staticcheck,unused
-DOCKER_IMAGE_VERSION=0.1.1
+DOCKER_IMAGE_VERSION=0.2.0
 
 api:
 	hack/generate_code.sh
@@ -19,18 +20,28 @@ gen_code: api proto
 build:
 	CGO_ENABLED=0 go build -o bin/${BINARY_NAME} cmd/main.go
 
-build-plugins:
+build-plugin-scaleout:
 	CGO_ENABLED=0 go build -o bin/plugins/${SCALEOUT_PLUGIN} plugins/${SCALEOUT_PLUGIN}/cmd/${SCALEOUT_PLUGIN}.go
+
+build-plugin-rmpod:
 	CGO_ENABLED=0 go build -o bin/plugins/${RMPOD_PLUGIN} plugins/${RMPOD_PLUGIN}/cmd/${RMPOD_PLUGIN}.go
+
+build-plugin-rdt:
 	CGO_ENABLED=0 go build -o bin/plugins/${RDT_PLUGIN} plugins/${RDT_PLUGIN}/cmd/${RDT_PLUGIN}.go
 
+build-plugin-cpu:
+	CGO_ENABLED=0 go build -o bin/plugins/${CPU_PLUGIN} plugins/${CPU_PLUGIN}/cmd/${CPU_PLUGIN}.go
+
+build-plugins: build-plugin-scaleout build-plugin-rmpod build-plugin-rdt build-plugin-cpu
+
 controller-images:
-	docker build -t planner:${DOCKER_IMAGE_VERSION} .
+	docker build -t planner:${DOCKER_IMAGE_VERSION} . --no-cache --pull
 
 plugin-images:
-	docker build -t scaleout:${DOCKER_IMAGE_VERSION} -f plugins/scale_out/Dockerfile .
-	docker build -t rmpod:${DOCKER_IMAGE_VERSION} -f plugins/rm_pod/Dockerfile .
-	docker build -t rdt:${DOCKER_IMAGE_VERSION} -f plugins/rdt/Dockerfile .
+	docker build -t scaleout:${DOCKER_IMAGE_VERSION} -f plugins/scale_out/Dockerfile . --no-cache --pull
+	docker build -t rmpod:${DOCKER_IMAGE_VERSION} -f plugins/rm_pod/Dockerfile . --no-cache --pull
+	docker build -t rdt:${DOCKER_IMAGE_VERSION} -f plugins/rdt/Dockerfile . --no-cache --pull
+	docker build -t cpuscale:${DOCKER_IMAGE_VERSION} -f plugins/cpu_scale/Dockerfile . --no-cache --pull
 
 all-images: controller-images plugin-images
 

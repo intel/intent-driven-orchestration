@@ -22,10 +22,11 @@ func (d dummyTracer) TraceEvent(_ common.State, _ common.State, _ []planner.Acti
 func (d dummyTracer) GetEffect(_ string, _ string, _ string, _ int, constructor func() interface{}) (interface{}, error) {
 	tmp := constructor().(*scaling.ScaleOutEffect)
 	// these numbers are from a test of the recommendation service of the GCP online boutique microservice demo app.
-	tmp.ReplicaRange = []int{1, 12}
+	tmp.ReplicaRange = [2]int{1, 12}
 	// Note that back in the days we did measure latency in s not ms.
-	tmp.Popt = []float64{0.02, 0.0000005, 0.008}
-	tmp.ThroughputRange = []float64{0.3, 6064.0}
+	tmp.Popt = [5]float64{0., 4.22303386, 0.14946586, 27.25801409, 0.32679364}
+	tmp.ThroughputRange = [2]float64{0.3, 6064.0}
+	tmp.ThroughputScale = [2]float64{0.002033898305084746, 0.7966101694915254}
 	return tmp, nil
 }
 
@@ -46,7 +47,7 @@ func setupTestCase() (common.State, common.State, map[string]common.Profile) {
 	goal := common.State{
 		Intent: common.Intent{
 			Objectives: map[string]float64{
-				"p99":          0.03,
+				"p99":          30,
 				"rps":          0,
 				"availability": 0.999,
 			},
@@ -67,7 +68,7 @@ func executeBenchmark(b *testing.B, planner *astar.APlanner) {
 	// quick test if the planner actually does sth...
 	res := planner.CreatePlan(start, goal, profiles)
 	if len(res) != 1 || res[0].Name != "scaleOut" || res[0].Properties.(map[string]int32)["factor"] != 2 {
-		klog.Errorf("benchmarks will fail - planner did not run correctly; result was: %v.", res)
+		b.Errorf("benchmarks will fail - planner did not run correctly; result was: %v.", res)
 	}
 
 	b.StartTimer()
@@ -156,7 +157,7 @@ func TestAStarGrpcCreatePlan(t *testing.T) {
 	s0, g0, profiles := setupTestCase()
 	res := myPlanner.CreatePlan(s0, g0, profiles)
 	if len(res) != 1 || res[0].Name != "scaleOut" || res[0].Properties.(map[string]int32)["factor"] != 2 {
-		klog.Errorf("Planner did not run correctly; result was: %v.", res)
+		t.Errorf("Planner did not run correctly; result was: %v.", res)
 	}
 
 	err := pS.Stop()
@@ -193,7 +194,7 @@ func TestAStarCreatePlan(t *testing.T) {
 	myPlanner := astar.NewAPlanner(actuatorList, cfg)
 	res := myPlanner.CreatePlan(start, goal, profiles)
 	if len(res) != 1 || res[0].Name != "scaleOut" || res[0].Properties.(map[string]int32)["factor"] != 2 {
-		klog.Errorf("Planner did not run correctly; result was: %v.", res)
+		t.Errorf("Planner did not run correctly; result was: %v.", res)
 	}
 	myPlanner.Stop()
 }

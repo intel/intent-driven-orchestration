@@ -8,12 +8,15 @@ WORKDIR /plugins
 COPY . ./
 
 RUN make prepare-build build-plugins \
-    && go run github.com/google/go-licenses@v1.3.1 save "./..." --save_path licenses \
+    && go run github.com/google/go-licenses@v1.6.0 save "./..." --save_path licenses \
     && hack/additional-licenses.sh
 
-FROM alpine:3.16
+FROM alpine:3.17
 
 RUN adduser -D nonroot
+RUN apk add --upgrade --no-cache openssl=~3.0 && apk add --no-cache python3=~3.10 py3-matplotlib=~3.6 \
+    py3-pip=~22.3 py3-scikit-learn=~1.1
+RUN pip install --no-cache-dir pymongo~=4.3
 
 WORKDIR /plugins
 
@@ -22,12 +25,7 @@ COPY --from=builder /plugins/licenses ./licenses
 COPY pkg/planner/actuators/platform/analyze.py /plugins/pkg/planner/actuators/platform/analyze.py
 COPY pkg/planner/actuators/platform/predict.py /plugins/pkg/planner/actuators/platform/predict.py
 
-RUN apk update && apk --no-cache add python3=~3.10 py3-matplotlib=~3.5  \
-    py3-pip=~22.1 py3-scikit-learn=~1.1
-
-RUN pip install --no-cache-dir pymongo==4.2
-
 USER nonroot:nonroot
-
 EXPOSE 33334
+
 ENTRYPOINT ["/plugins/bin/plugins/rdt"]

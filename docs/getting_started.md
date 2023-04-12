@@ -100,7 +100,7 @@ declared Intents. Over time the planner will learn a scaling model and use that 
 For more details on models see the [actuators'](actuators.md) documentation.
 
 This intent declaration with the demo assumes a service mesh is used to measure the KPIs. The KPI profiles used match
-the default queries described earlier.  
+the default queries described earlier.
 
 **_Note_** that for this demonstration, it is assumed that proactive and opportunistic planning are enabled. See the
 configuration references for more details on this.
@@ -171,7 +171,6 @@ Each actuator will have its own configuration.
 | plugin_manager_endpoint  | String defining the plugin manager's endpoint to which actuators can register themselves. |
 | plugin_manager_port      | Port number of the plugin manager's endpoint to which actuators can register themselves.  |
 
-
 ### remove pod actuator
 
 | Property                | Description                                                                               |
@@ -183,6 +182,24 @@ Each actuator will have its own configuration.
 | mongo_endpoint          | URI for the Mongo database - representing the knowledge base of the system.               |
 | plugin_manager_endpoint | String defining the plugin manager's endpoint to which actuators can register themselves. |
 | plugin_manager_port     | Port number of the plugin manager's endpoint to which actuators can register themselves.  |
+
+### cpu scale actuator
+
+| Property                     | Description                                                                                                                                                                                                |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| interpreter                  | Path to a python interpreter.                                                                                                                                                                              |
+| analytics_script             | Path to the analytics python script used to determine the scaling model.                                                                                                                                   |
+| cpu_max                      | Maximum CPU resource units (in millis) that the actuator will allow.                                                                                                                                       |
+| cpu_rounding                 | Multiple of 10 defining how to round up CPU resource units.                                                                                                                                                |
+| cpu_safeguard_factor         | Define the factor the actuator will use to stay below the targeted objective.                                                                                                                              |
+| look_back                    | Time in minutes defining how old the ML model can be.                                                                                                                                                      |
+| max_proactive_cpu            | Maximum CPU resource units (in millis) that the actuator will allow when proactively scaling. If set to 0, proactive planning is disabled. A fraction of this value is used for proactive scale ups/downs. |
+| proactive_latency_percentage | Float defining the potential percentage change in latency by scaling the resources.                                                                                                                        |
+| endpoint                     | Name of the endpoint to use for registering this plugin.                                                                                                                                                   |
+| port                         | Port this actuator should listen on.                                                                                                                                                                       |
+| mongo_endpoint               | URI for the Mongo database - representing the knowledge base of the system.                                                                                                                                |
+| plugin_manager_endpoint      | String defining the plugin manager's endpoint to which actuators can register themselves.                                                                                                                  |
+| plugin_manager_port          | Port number of the plugin manager's endpoint to which actuators can register themselves.                                                                                                                   |
 
 ### RDT actuator
 

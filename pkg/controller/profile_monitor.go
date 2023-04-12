@@ -60,7 +60,7 @@ func NewKPIProfileMonitor(cfg common.MonitorConfig, profileClient clientSet.Inte
 	// TODO: check for event broadcasting.
 
 	// handle add, update & delete.
-	profileInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = profileInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
 		UpdateFunc: func(old, new interface{}) {
 			if old.(*v1alpha1.KPIProfile).ResourceVersion == new.(*v1alpha1.KPIProfile).ResourceVersion {

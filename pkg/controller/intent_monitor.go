@@ -40,7 +40,7 @@ func NewIntentMonitor(intentClient clientSet.Interface, intentInformer informers
 	mon.syncHandler = mon.processIntent
 
 	// functions handler.
-	intentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = intentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
 		UpdateFunc: func(old, new interface{}) {
 			if old.(*v1alpha1.Intent).ResourceVersion == new.(*v1alpha1.Intent).ResourceVersion {

@@ -1,15 +1,19 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: rdt-configmap
+  name: cpu-scale-configmap
 data:
   defaults.json: |-
     {
       "interpreter": "python3",
-      "analytics_script": "./pkg/planner/actuators/platform/analyze.py",
-      "prediction_script": "./pkg/planner/actuators/platform/predict.py",
-      "options": ["None", "COS1", "COS2", "COS3"],
-      "endpoint": "rdt-actuator-service",
+      "analytics_script": "./pkg/planner/actuators/scaling/cpu_rightsizing.py",
+      "cpu_max": 4000,
+      "cpu_rounding": 100,
+      "cpu_safeguard_factor": 0.95,
+      "look_back": 20,
+      "max_proactive_cpu": 0,
+      "proactive_latency_percentage": 0.1,
+      "endpoint": "cpu-scale-actuator-service",
       "port": 33334,
       "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
       "plugin_manager_endpoint": "plugin-manager-service",
@@ -19,15 +23,16 @@ data:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: rdt-actuator
+  name: cpu-scale-actuator
   labels:
-    name: rdt-actuator
+    name: cpu-scale-actuator
 spec:
   serviceAccountName: planner-service-account
   containers:
-  - name: rdt-actuator
-    image: 127.0.0.1:5000/rdt:0.2.0
-    args: [ "-config", "/config/defaults.json" ]
+  - name: cpu-scale-actuator
+    image: 127.0.0.1:5000/cpuscale:0.2.0
+    imagePullPolicy: Always
+    args: [ "-config", "/config/defaults.json", "-v", "2" ]
     ports:
     - containerPort: 33334
     securityContext:
@@ -48,23 +53,21 @@ spec:
         memory: "512Mi"
         cpu: "500m"
     volumeMounts:
+      - name: cpu-scale-configmap-volume
+        mountPath: /config/
       - name: matplotlib-tmp
         mountPath: /var/tmp
-      - name: rdt-configmap-volume
-        mountPath: /config/
     env:
     # Needed for the analytics python script.
     - name: MONGO_URL
       value: "mongodb://planner-mongodb-service:27017/"
-    - name: MPLCONFIGDIR 
-      value: /var/tmp  
   volumes:
     - name: matplotlib-tmp
       emptyDir:
         sizeLimit: 100Mi
-    - name: rdt-configmap-volume
+    - name: cpu-scale-configmap-volume
       configMap:
-        name: rdt-configmap
+        name: cpu-scale-configmap
         items:
           - key: defaults.json
             path: defaults.json
@@ -84,11 +87,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: rdt-actuator-service
+  name: cpu-scale-actuator-service
 spec:
   clusterIP: None
   selector:
-    name: rdt-actuator
+    name: cpu-scale-actuator
   ports:
     - protocol: TCP
       port: 33334

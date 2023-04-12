@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	goRuntime "runtime"
 
 	"k8s.io/klog/v2"
-
-	goRuntime "runtime"
 )
 
 // Config holds all the configuration information.
@@ -126,6 +125,10 @@ func ParseConfig(filename string) (Config, error) {
 	if result.Planner.AStar.OpportunisticCandidates < 0 ||
 		result.Planner.AStar.OpportunisticCandidates > 1000 {
 		return *result, fmt.Errorf("invalid input value: Out of the provided limits")
+	}
+	if result.Planner.AStar.PluginManagerPort < 0 ||
+		result.Planner.AStar.PluginManagerPort > 65535 {
+		return *result, fmt.Errorf("invalid input value: Port number is not in a valid range: %d", result.Planner.AStar.PluginManagerPort)
 	}
 	if !checkURL(result.Controller.TelemetryEndpoint) || !checkURL(result.Generic.MongoEndpoint) {
 		return *result, fmt.Errorf("invalid URL")

@@ -76,7 +76,7 @@ func (rm RmPodActuator) NextState(state *common.State, goal *common.State, profi
 					klog.Warningf("No valid effect data found in knowledge base: %v.", res)
 					return states, utilities, actions
 				}
-				newState.Intent.Objectives[k] = predictLatency(res.(*ScaleOutEffect).Popt, state.Intent.Objectives[throughputObjective], len(newState.CurrentPods))
+				newState.Intent.Objectives[k] = predictLatency(res.(*ScaleOutEffect).Popt, (state.Intent.Objectives[throughputObjective]*res.(*ScaleOutEffect).ThroughputScale[0])+res.(*ScaleOutEffect).ThroughputScale[1], len(newState.CurrentPods))
 			} else if profiles[k].ProfileType == common.ProfileTypeFromText("availability") {
 				newState.Intent.Objectives[k] = controller.PodSetAvailability(newState.CurrentPods)
 				util = newState.Intent.Objectives[k]

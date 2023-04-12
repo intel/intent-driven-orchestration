@@ -70,7 +70,7 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 	mon.podCacheChannel = mon.updatePodCache()
 
 	// event handlers.
-	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// No need to AddFunc, as POD is first pending...through an update is initially gets ready.
 		UpdateFunc: func(old, new interface{}) {
 			if old.(*coreV1.Pod).ResourceVersion == new.(*coreV1.Pod).ResourceVersion {
@@ -91,6 +91,7 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 			mon.update <- common.PodError{Key: key}
 		},
 	})
+
 	return mon
 }
 

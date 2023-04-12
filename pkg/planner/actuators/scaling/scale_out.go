@@ -49,10 +49,11 @@ type ScaleOutConfig struct {
 type ScaleOutEffect struct {
 	// TODO: make private again once refactored.
 	// Never ever think about making these non-public! Needed for marshalling this struct.
-	ThroughputRange  []float64
-	ReplicaRange     []int
-	Popt             []float64
-	TrainingFeatures []string
+	ThroughputRange  [2]float64
+	ThroughputScale  [2]float64
+	ReplicaRange     [2]int
+	Popt             [5]float64
+	TrainingFeatures [2]string
 	TargetFeature    string
 	Image            string
 }
@@ -84,14 +85,12 @@ func averageAvailability(pods map[string]common.PodState) float64 {
 }
 
 // predictLatency uses the knowledge base to forecast the latency.
-func predictLatency(popt []float64, throughput float64, numPods int) float64 {
+func predictLatency(popt [5]float64, throughput float64, numPods int) float64 {
 	// TODO: predict future throughput.
 	if numPods == 0 || throughput == 0 {
 		return 0.0
 	}
-	return popt[0] + popt[1]*throughput*math.Log(throughput) - popt[2]*math.Log(float64(numPods))
-	// Alternative: popt[0] + math.Pow(throughput, popt[1]) + popt[2]*throughput*math.Log(float64(numPods))
-	// of (tput)**b - c*(tput)*(n_pods**d)
+	return popt[0] + popt[1]*math.Exp(popt[2]*throughput) + popt[3]*math.Exp(-popt[4]*float64(numPods))
 }
 
 // findState tries to determine the best possible # of replicas.
@@ -111,12 +110,12 @@ func (scale ScaleOutActuator) findState(state *common.State, goal *common.State,
 				if len(newState.CurrentPods) > res.(*ScaleOutEffect).ReplicaRange[1] {
 					return common.State{}, fmt.Errorf("scaling out further won't help - known replica Range: %v", res.(*ScaleOutEffect).ReplicaRange)
 				}
-				newState.Intent.Objectives[k] = predictLatency(res.(*ScaleOutEffect).Popt, state.Intent.Objectives[throughputObjective], len(newState.CurrentPods))
+				newState.Intent.Objectives[k] = predictLatency(res.(*ScaleOutEffect).Popt, (state.Intent.Objectives[throughputObjective]*res.(*ScaleOutEffect).ThroughputScale[0])+res.(*ScaleOutEffect).ThroughputScale[1], len(newState.CurrentPods))
 			} else if profiles[k].ProfileType == common.ProfileTypeFromText("availability") {
 				newState.Intent.Objectives[k] = controller.PodSetAvailability(newState.CurrentPods)
 			}
 		}
-		if newState.Compare(goal, profiles) {
+		if newState.IsBetter(goal, profiles) {
 			return newState, nil
 		}
 		last = &newState
@@ -125,7 +124,7 @@ func (scale ScaleOutActuator) findState(state *common.State, goal *common.State,
 }
 
 func (scale ScaleOutActuator) NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
-	if state.Compare(goal, profiles) {
+	if state.IsBetter(goal, profiles) {
 		return nil, nil, nil
 	}
 
@@ -146,7 +145,7 @@ func (scale ScaleOutActuator) NextState(state *common.State, goal *common.State,
 		if _, ok := state.CurrentPods["proactiveTemp"]; !ok && len(state.CurrentPods) < scale.cfg.MaxProActiveScaleOut {
 			klog.Infof("Trying a proactive scale-out to see if I can learn sth.")
 			tempState := state.DeepCopy()
-			tempState.CurrentPods["proactiveTemp"] = common.PodState{Availability: averageAvailability(newState.CurrentPods)}
+			tempState.CurrentPods["proactiveTemp"] = common.PodState{Availability: averageAvailability(tempState.CurrentPods)}
 			for name := range tempState.Intent.Objectives {
 				if profiles[name].ProfileType == common.ProfileTypeFromText("latency") {
 					tempState.Intent.Objectives[name] *= scale.cfg.ProActiveLatencyFactor
@@ -189,7 +188,7 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				klog.Errorf("failed to get latest version of: %v", err)
 				return err
 			}
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + factor)
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().Deployments(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr
@@ -206,7 +205,7 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				klog.Errorf("failed to get latest version of: %v", err)
 				return err
 			}
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + factor)
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().ReplicaSets(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr
@@ -217,7 +216,6 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 			klog.Errorf("failed to update: %v", retryErr)
 		}
 	}
-
 }
 
 func (scale ScaleOutActuator) Effect(state *common.State, profiles map[string]common.Profile) {
@@ -241,6 +239,7 @@ func (scale ScaleOutActuator) Effect(state *common.State, profiles map[string]co
 			if err != nil {
 				klog.Errorf("Error triggering analytics script: %s - %s.", err, string(out))
 			}
+			klog.V(2).Infof("Script output was: %v", string(out))
 		}
 	} else {
 		klog.Info("No throughput related objective defined - skipping analytics!")

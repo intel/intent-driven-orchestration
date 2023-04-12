@@ -55,6 +55,8 @@ func (t MongoTracer) TraceEvent(current common.State, desired common.State, plan
 		{Key: "timestamp", Value: time.Now()},
 		{Key: "current_objectives", Value: current.Intent.Objectives},
 		{Key: "desired_objectives", Value: desired.Intent.Objectives},
+		{Key: "resources", Value: current.Resources},
+		{Key: "annotations", Value: current.Annotations},
 		{Key: "pods", Value: current.CurrentPods},
 		{Key: "data", Value: current.CurrentData},
 		{Key: "plan", Value: plan},
@@ -78,7 +80,6 @@ func (t MongoTracer) GetEffect(name string, group string, profileName string, lo
 	lookBack := time.Now().Add(-time.Minute * time.Duration(lookBackMinutes))
 
 	tempResult := bson.M{}
-
 	opts := options.FindOne()
 	opts.SetSort(bson.D{{Key: "_id", Value: -1}})                               // want last doc.
 	opts.SetProjection(bson.D{{Key: "data", Value: 1}, {Key: "_id", Value: 0}}) // we only care about the data.
@@ -90,8 +91,10 @@ func (t MongoTracer) GetEffect(name string, group string, profileName string, lo
 			bson.M{"timestamp": bson.M{"$gt": lookBack}}},
 		},
 	}
-
 	err := collection.FindOne(context.TODO(), filter, opts).Decode(tempResult)
+	if len(tempResult) == 0 {
+		klog.V(2).Info("no effects collection created")
+	}
 	if err != nil {
 		klog.Errorf("Error to decode: %s", err)
 		return nil, err
@@ -102,6 +105,8 @@ func (t MongoTracer) GetEffect(name string, group string, profileName string, lo
 	}
 	data := createType()
 	err = json.Unmarshal(obj, data)
-
+	if err != nil {
+		klog.Errorf("Error unmarshal: %s ", err)
+	}
 	return data, err
 }

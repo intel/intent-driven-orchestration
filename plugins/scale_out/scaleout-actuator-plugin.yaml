@@ -6,7 +6,7 @@ data:
   defaults.json: |-
     {
       "interpreter": "python3",
-      "analytics_script": "./pkg/planner/actuators/scaling/analytics.py",
+      "analytics_script": "./pkg/planner/actuators/scaling/horizontal_scaling.py",
       "max_pods": 128,
       "look_back": 20,
       "max_proactive_scale_out": 0,
@@ -28,17 +28,30 @@ spec:
   serviceAccountName: planner-service-account
   containers:
   - name: scaleout-actuator
-    image: 127.0.0.1:5000/scaleout:0.1.1
+    image: 127.0.0.1:5000/scaleout:0.2.0
     args: [ "-config", "/config/defaults.json" ]
     ports:
     - containerPort: 33334
     securityContext:
         capabilities:
-          drop:
-            - all
+          drop: [ 'ALL' ]
+        seccompProfile:
+          type: RuntimeDefault
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
         runAsNonRoot: true
         runAsUser: 10001
+        runAsGroup: 10001
+    resources:
+      limits:
+        memory: "1024Mi"
+        cpu: "2000m"
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
     volumeMounts:
+      - name: matplotlib-tmp
+        mountPath: /var/tmp
       - name: scaleout-configmap-volume
         mountPath: /config/
     env:
@@ -46,6 +59,9 @@ spec:
     - name: MONGO_URL
       value: "mongodb://planner-mongodb-service:27017/"
   volumes:
+    - name: matplotlib-tmp
+      emptyDir:
+        sizeLimit: 100Mi
     - name: scaleout-configmap-volume
       configMap:
         name: scaleout-configmap

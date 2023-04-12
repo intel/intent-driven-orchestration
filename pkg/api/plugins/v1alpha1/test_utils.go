@@ -4,8 +4,6 @@ import (
 	protobufs "github.com/intel/intent-driven-orchestration/pkg/api/plugins/v1alpha1/protobufs"
 	"github.com/intel/intent-driven-orchestration/pkg/common"
 	"github.com/intel/intent-driven-orchestration/pkg/planner"
-
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type ActuatorValidationSet struct {
@@ -38,11 +36,13 @@ func generateActuatorGrpcValidationSet() *ActuatorGrpcValidationSet {
 					"p99latency": 150,
 				},
 			},
-			CurrentPods: map[string]*protobufs.PodState{"pod_0": {Availability: 0.7, Resources: map[string]string{"cpu": "23"}}},
+			CurrentPods: map[string]*protobufs.PodState{"pod_0": {Availability: 0.7}},
 			CurrentData: map[string]*protobufs.DataEntry{"cpu_value": {
 				Data: map[string]float64{"host0": 20.0},
 			},
 			},
+			Resources:   map[string]string{"cpu": "23"},
+			Annotations: map[string]string{"foo": "bar"},
 		},
 		goal: &protobufs.State{
 			Intent: &protobufs.Intent{
@@ -68,8 +68,10 @@ func generateActuatorGrpcValidationSet() *ActuatorGrpcValidationSet {
 						"p99latency": 222,
 					},
 				},
-				CurrentPods: map[string]*protobufs.PodState{"pod_0": {Availability: 0.6, Resources: map[string]string{"cpu": "12"}}},
+				CurrentPods: map[string]*protobufs.PodState{"pod_0": {Availability: 0.6}},
 				CurrentData: map[string]*protobufs.DataEntry{"cpu_value": {Data: map[string]float64{"host0": 21.3}}},
+				Resources:   map[string]string{"cpu": "12"},
+				Annotations: map[string]string{"foo": "bar"},
 			},
 		},
 		utilities: []float64{0.32, 0.64},
@@ -105,8 +107,10 @@ func generateActuatorValidationSet() *ActuatorValidationSet {
 					"p99latency": 150,
 				},
 			},
-			CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.7, Resources: map[string]resource.Quantity{"cpu": resource.MustParse("23")}}},
+			CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.7}},
 			CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
+			Resources:   map[string]string{"cpu": "23"},
+			Annotations: map[string]string{"foo": "bar"},
 		},
 		goal: &common.State{
 			Intent: common.Intent{
@@ -132,8 +136,10 @@ func generateActuatorValidationSet() *ActuatorValidationSet {
 						"p99latency": 222,
 					},
 				},
-				CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.6, Resources: map[string]resource.Quantity{"cpu": resource.MustParse("12")}}},
+				CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.6}},
 				CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 21.3}},
+				Resources:   map[string]string{"cpu": "12"},
+				Annotations: map[string]string{"foo": "bar"},
 			},
 		},
 		utilities: []float64{0.32, 0.64},

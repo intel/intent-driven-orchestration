@@ -1,0 +1,19 @@
+_attic/
+vendor/
+bin/
+# coverage outputs etc.
+*.out
+*.dot*
+coverage.html
+# IDE related stuff.
+.vscode/
+.idea/
+# profiling
+*.test
+*.profile
+*.cpuprofile
+# in-tree folders not used for build process
+bin
+docs
+.git
+.github
