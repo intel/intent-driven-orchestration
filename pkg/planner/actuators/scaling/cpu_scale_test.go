@@ -166,12 +166,12 @@ func TestCPUScalePerformForSuccess(t *testing.T) {
 	s0 := common.State{
 		Intent:      common.Intent{TargetKey: "default/my-deployment", TargetKind: "Deployment"},
 		CurrentPods: map[string]common.PodState{"pod_0": {}},
-		Resources: map[string]string{
-			"1_cpu_limits": "100",
+		Resources: map[string]int64{
+			"1_cpu_limits": 100,
 		},
 	}
 	s0.Intent.TargetKind = "Deployment"
-	plan := []planner.Action{{Name: actionName, Properties: map[string]int32{"value": 2000}}}
+	plan := []planner.Action{{Name: actionName, Properties: map[string]int64{"value": 2000}}}
 	actuator.Perform(&s0, plan)
 }
 
@@ -185,8 +185,8 @@ func TestCPUScaleEffectForSuccess(t *testing.T) {
 }
 
 // TestCPUScaleGetResourcesForSuccess tests for success.
-func TestCPUScaleGetResourcesForSuccess(t *testing.T) {
-	s0 := common.State{Resources: map[string]string{}}
+func TestCPUScaleGetResourcesForSuccess(_ *testing.T) {
+	s0 := common.State{Resources: map[string]int64{}}
 	getResourceValues(&s0)
 }
 
@@ -218,9 +218,9 @@ func TestCPUScaleNextStateForFailure(t *testing.T) {
 				State:        "Running",
 			},
 		},
-		Resources: map[string]string{
-			"1_cpu_requests": "100m",
-			"1_cpu_limits":   "100m",
+		Resources: map[string]int64{
+			"1_cpu_requests": 100,
+			"1_cpu_limits":   100,
 		},
 	}
 	goal := common.State{}
@@ -244,8 +244,8 @@ func TestCPUScaleNextStateForFailure(t *testing.T) {
 	}
 
 	// negative resource limit.
-	state.Resources = map[string]string{
-		"1_cpu_limits": "-100",
+	state.Resources = map[string]int64{
+		"1_cpu_limits": -100,
 	}
 	states, _, _ = actuator.NextState(&state, &goal, profiles)
 	if len(state.CurrentData) > 0 {
@@ -253,8 +253,8 @@ func TestCPUScaleNextStateForFailure(t *testing.T) {
 	}
 
 	// too high resource limit
-	state.Resources = map[string]string{
-		"1_cpu_limits": "100000",
+	state.Resources = map[string]int64{
+		"1_cpu_limits": 100000,
 	}
 	states, _, _ = actuator.NextState(&state, &goal, profiles)
 	if len(state.CurrentData) > 0 {
@@ -274,7 +274,7 @@ func TestCPUScalePerformForFailure(t *testing.T) {
 		CurrentPods: map[string]common.PodState{"pod_0": {}},
 	}
 	plan := []planner.Action{
-		{Name: actionName, Properties: map[string]int32{"value": 750}},
+		{Name: actionName, Properties: map[string]int64{"value": 750}},
 	}
 	actuator.Perform(&s0, plan)
 	expectedActions := []string{"get"}
@@ -293,7 +293,7 @@ func TestCPUScalePerformForFailure(t *testing.T) {
 		Intent: common.Intent{TargetKey: "default/my-rs", TargetKind: "ReplicaSet"},
 	}
 	plan = []planner.Action{
-		{Name: actionName, Properties: map[string]int32{"value": 750}},
+		{Name: actionName, Properties: map[string]int64{"value": 750}},
 	}
 	actuator.Perform(&s1, plan)
 	expectedActions = []string{"get"}
@@ -309,7 +309,7 @@ func TestCPUScalePerformForFailure(t *testing.T) {
 	// plan property is invalid.
 	f.client.ClearActions()
 	plan = []planner.Action{
-		{Name: actionName, Properties: map[string]int32{"booja": 200}},
+		{Name: actionName, Properties: map[string]int64{"booja": 200}},
 	}
 	actuator.Perform(&s0, plan)
 	if len(f.client.Actions()) != 0 {
@@ -319,7 +319,7 @@ func TestCPUScalePerformForFailure(t *testing.T) {
 
 // TestCPUScaleGetResourcesForFailure tests for failure
 func TestCPUScaleGetResourcesForFailure(t *testing.T) {
-	s0 := common.State{Resources: map[string]string{"a_cpu_limits": "100"}}
+	s0 := common.State{Resources: map[string]int64{"a_cpu_limits": 100}}
 	res := getResourceValues(&s0)
 	if res != 0 {
 		t.Errorf("Should have been 0 - was: %d.", res)
@@ -354,9 +354,9 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 				State:        "Running",
 			},
 		},
-		Resources: map[string]string{
-			"1_cpu_limits":   "1600",
-			"1_cpu_requests": "1600",
+		Resources: map[string]int64{
+			"1_cpu_limits":   1600,
+			"1_cpu_requests": 1600,
 		},
 		CurrentData: make(map[string]map[string]float64),
 	}
@@ -386,7 +386,7 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	goal.Intent.Objectives["default/p99"] = 120
 	delete(state.CurrentData, actionName)
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
-	if len(actions) != 1 || actions[0].Properties.(map[string]int32)["value"] != 800 {
+	if len(actions) != 1 || actions[0].Properties.(map[string]int64)["value"] != 800 {
 		t.Errorf("Extpected one action to set 800 - got: %v", actions)
 	}
 
@@ -401,7 +401,7 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	actuator = f.newCPUScaleTestActuator(true)
 	goal.Intent.Objectives["default/p99"] = 20
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
-	if len(actions) != 1 || actions[0].Properties.(map[string]int32)["proactive"] != 1 || actions[0].Properties.(map[string]int32)["value"] != 1800 {
+	if len(actions) != 1 || actions[0].Properties.(map[string]int64)["proactive"] != 1 || actions[0].Properties.(map[string]int64)["value"] != 1800 {
 		t.Errorf("Should contain 1 proactive action; was: %v", actions)
 	}
 
@@ -414,8 +414,8 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 
 	// maxProactive reached.
 	delete(state.CurrentPods, "proactiveResourceAlloc")
-	state.Resources = map[string]string{
-		"1_cpu_limits": fmt.Sprint(actuator.cfg.MaxProActiveCPU),
+	state.Resources = map[string]int64{
+		"1_cpu_limits": actuator.cfg.MaxProActiveCPU,
 	}
 	states, utilities, actions = actuator.NextState(&state, &goal, profiles)
 	if len(states) != 0 || len(utilities) != 0 || len(actions) != 0 {
@@ -428,8 +428,32 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	state.Intent.Objectives["default/p95"] = 100
 	goal.Intent.Objectives["default/p95"] = 200
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
-	if len(actions) != 1 || actions[0].Properties.(map[string]int32)["proactive"] != 1 || actions[0].Properties.(map[string]int32)["value"] < 1800 || actions[0].Properties.(map[string]int32)["value"] > 1900 {
+	if len(actions) != 1 || actions[0].Properties.(map[string]int64)["proactive"] != 1 || actions[0].Properties.(map[string]int64)["value"] < 1800 || actions[0].Properties.(map[string]int64)["value"] > 1900 {
 		t.Errorf("Should contain 1 proactive action; was: %v", actions)
+	}
+
+	// ensure an "empty" state does not crash the actuator.
+	actuator = f.newCPUScaleTestActuator(false)
+	delete(goal.Intent.Objectives, "default/p95")
+	goal.Intent.Objectives["default/p99"] = 120
+	emptyState := common.State{
+		Intent: struct {
+			Key        string
+			Priority   float64
+			TargetKey  string
+			TargetKind string
+			Objectives map[string]float64
+		}{
+			Key:        "default/my-objective",
+			Priority:   1.0,
+			TargetKey:  "default/my-deployment",
+			TargetKind: "Deployment",
+			Objectives: map[string]float64{"default/p99": 250.0},
+		},
+	}
+	_, _, actions = actuator.NextState(&emptyState, &goal, profiles)
+	if len(actions) != 0 {
+		t.Errorf("Should contain no action; was: %v", actions)
 	}
 }
 
@@ -444,7 +468,7 @@ func TestCPUScalePerformForSanity(t *testing.T) {
 		Intent: common.Intent{TargetKey: "default/my-deployment", TargetKind: "Deployment"},
 	}
 	plan := []planner.Action{
-		{Name: actionName, Properties: map[string]int32{"value": 1000}},
+		{Name: actionName, Properties: map[string]int64{"value": 1000}},
 	}
 	actuator.Perform(&s0, plan)
 	expectedActions := []string{"get", "update"}
@@ -546,30 +570,34 @@ func TestCPUScaleEffectForSanity(t *testing.T) {
 	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
 	actuator := f.newCPUScaleTestActuator(false)
 	actuator.Effect(&state, profiles)
+
+	// check with None.
+	actuator.cfg.Script = "None"
+	actuator.Effect(&state, profiles)
 }
 
 // TestCPUScaleGetResourcesForSuccess tests for sanity.
 func TestCPUScaleGetResourcesForSanity(t *testing.T) {
-	s0 := common.State{Resources: map[string]string{}}
+	s0 := common.State{Resources: map[string]int64{}}
 	res := getResourceValues(&s0)
 	if res != 0 {
 		t.Errorf("Should have been 0 - was: %v", res)
 	}
 
 	// request defined.
-	s0.Resources["0_cpu_requests"] = "200"
+	s0.Resources["0_cpu_requests"] = 200
 	res = getResourceValues(&s0)
 	if res != 200 {
 		t.Errorf("Should have been 200 - was: %v", res)
 	}
 	// limits defined.
-	s0.Resources["0_cpu_limits"] = "400"
+	s0.Resources["0_cpu_limits"] = 400
 	res = getResourceValues(&s0)
 	if res != 400 {
 		t.Errorf("Should have been 400 - was: %v", res)
 	}
 	// the last container matters.
-	s0.Resources["1_cpu_limits"] = "100"
+	s0.Resources["1_cpu_limits"] = 100
 	res = getResourceValues(&s0)
 	if res != 100 {
 		t.Errorf("Should have been 100 - was: %v", res)
@@ -608,9 +636,9 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 			},
 		},
 		CurrentData: map[string]map[string]float64{"cpu_usage": {}},
-		Resources: map[string]string{
-			"1_cpu_limits":   "1000",
-			"1_cpu_requests": "1000",
+		Resources: map[string]int64{
+			"1_cpu_limits":   1000,
+			"1_cpu_requests": 1000,
 		},
 		Annotations: nil,
 	}
@@ -649,9 +677,9 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 						},
 					},
 					CurrentData: map[string]map[string]float64{"cpu_usage": {}},
-					Resources: map[string]string{
-						"1_cpu_limits":   "500",
-						"1_cpu_requests": "500",
+					Resources: map[string]int64{
+						"1_cpu_limits":   500,
+						"1_cpu_requests": 500,
 					},
 					Annotations: nil,
 				},
@@ -665,7 +693,7 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 			want:  []common.State{newState},
 			want1: []float64{0.5},
 			want2: []planner.Action{{Name: actionName,
-				Properties: map[string]int32{"value": 1000}},
+				Properties: map[string]int64{"value": 1000}},
 			},
 		},
 	}
@@ -680,7 +708,7 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 			newState.Intent.Objectives["default/p95latency"] = cs.predictLatency(
 				[]float64{400, 2, 30}, 900)
 			newState.Intent.Objectives["default/availability"] = 1
-			got, got1, got2 := cs.NextState(&tt.args.state, &tt.args.goal, tt.args.profiles)
+			got, got1, got2 := cs.NextState(&tt.args.state, &tt.args.goal, tt.args.profiles) //#nosec G601 -- NA as this is a test.
 
 			if !reflect.DeepEqual(got[0].Resources, tt.want[0].Resources) {
 				t.Errorf("NextState() got = %v, want %v", got, tt.want)

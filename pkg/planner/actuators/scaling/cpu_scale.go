@@ -44,12 +44,12 @@ type CPUScaleConfig struct {
 	CPUSafeGuardFactor         float64 `json:"cpu_safeguard_factor"`
 	MaxProActiveCPU            int64   `json:"max_proactive_cpu"`
 	ProActiveLatencyPercentage float64 `json:"proactive_latency_percentage"`
-	Port                       int     `json:"port"`
-	Endpoint                   string  `json:"endpoint"`
-	MongoEndpoint              string  `json:"mongo_endpoint"`
 	LookBack                   int     `json:"look_back"`
+	Endpoint                   string  `json:"endpoint"`
+	Port                       int     `json:"port"`
 	PluginManagerEndpoint      string  `json:"plugin_manager_endpoint"`
 	PluginManagerPort          int     `json:"plugin_manager_port"`
+	MongoEndpoint              string  `json:"mongo_endpoint"`
 }
 
 // CPUScaleEffect describes the data that is stored in the knowledge base.
@@ -100,12 +100,11 @@ func getResourceValues(state *common.State) int64 {
 			return 0
 		}
 		if items[1] == "cpu" && index >= lastIndex {
-			tmp := resource.MustParse(value)
 			if items[2] == "requests" {
-				cpuRequest = tmp.Value()
+				cpuRequest = value
 			} else if items[2] == "limits" {
-				cpuLimit = tmp.Value()
-				cpuRequest = tmp.Value()
+				cpuLimit = value
+				cpuRequest = value
 			}
 			lastIndex = index
 		}
@@ -231,8 +230,12 @@ func (cs CPUScaleActuator) findState(
 				index = tmp
 			}
 		}
-		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "limits"}, delimiter)] = strconv.FormatInt(newCPUValue, 10)
-		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "requests"}, delimiter)] = strconv.FormatInt(newCPUValue, 10)
+		// resources can be nil so need a quick check here.
+		if newState.Resources == nil {
+			newState.Resources = make(map[string]int64)
+		}
+		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "limits"}, delimiter)] = newCPUValue
+		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "requests"}, delimiter)] = newCPUValue
 		newState.CurrentData[cs.Name()] = map[string]float64{cs.Name(): 1}
 		return newState, newCPUValue, nil
 	}
@@ -282,8 +285,8 @@ func (cs CPUScaleActuator) proactiveScaling(
 			actionPlan := []planner.Action{
 				{
 					Name: cs.Name(),
-					Properties: map[string]int32{
-						"value":     int32(newCPULim),
+					Properties: map[string]int64{
+						"value":     newCPULim,
 						"proactive": 1,
 					},
 				},
@@ -300,8 +303,11 @@ func (cs CPUScaleActuator) NextState(state *common.State, goal *common.State,
 	if _, ok := state.CurrentData[cs.Name()]; ok {
 		return nil, nil, nil
 	}
-
-	// let's find a follow-up state
+	// we don't need to do anything if there are no PODs.
+	if len(state.CurrentPods) == 0 {
+		return nil, nil, nil
+	}
+	// let's find a follow-up state.
 	currentValue := getResourceValues(state)
 	newState, newValue, err := cs.findState(state, goal, currentValue, profiles)
 	if newValue != 0 && err == nil {
@@ -310,7 +316,7 @@ func (cs CPUScaleActuator) NextState(state *common.State, goal *common.State,
 			utility *= 1.0 / goal.Intent.Priority
 		}
 		return []common.State{newState}, []float64{utility}, []planner.Action{
-			{Name: cs.Name(), Properties: map[string]int32{"value": int32(newValue)}},
+			{Name: cs.Name(), Properties: map[string]int64{"value": newValue}},
 		}
 	}
 	// if the actuator is allowed to proactively scale - let's try that.
@@ -327,7 +333,7 @@ func (cs CPUScaleActuator) NextState(state *common.State, goal *common.State,
 func (cs CPUScaleActuator) Perform(state *common.State, plan []planner.Action) {
 	for _, item := range plan {
 		if item.Name == actionName {
-			a := item.Properties.(map[string]int32)
+			a := item.Properties.(map[string]int64)
 			if val, ok := a["value"]; ok {
 				cs.setResourceValues(state, int(val))
 			}
@@ -337,6 +343,11 @@ func (cs CPUScaleActuator) Perform(state *common.State, plan []planner.Action) {
 }
 
 func (cs CPUScaleActuator) Effect(state *common.State, profiles map[string]common.Profile) {
+	if cs.cfg.Script == "None" {
+		klog.V(2).Infof("Effect calculation is disabled - will not run analytics.")
+		return
+	}
+
 	var latencyObjectives []string
 	for k := range state.Intent.Objectives {
 		if profiles[k].ProfileType == common.ProfileTypeFromText("latency") {

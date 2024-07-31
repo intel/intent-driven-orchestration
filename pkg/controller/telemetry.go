@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"k8s.io/klog/v2"
 )
 
 // init makes sure we use the "real" http client when not testing.
 func init() {
-	Client = &http.Client{}
+	Client = &http.Client{
+		Timeout: 5 * time.Second,
+	}
 }
 
 // getHostTelemetry returns (optional) information for a set of hosts.

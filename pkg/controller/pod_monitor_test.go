@@ -129,7 +129,7 @@ func TestRunPodMonitorForSuccess(t *testing.T) {
 	mon, faker := f.newMonitor(stop)
 
 	// syncHandler "replaced" by sth simpler...
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 
@@ -171,7 +171,7 @@ func TestRunPodMonitorForFailure(t *testing.T) {
 
 	// syncHandler will raise an error.
 	mon, faker := f.newMonitor(stop)
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return errors.New("oops")
 	}
 
@@ -212,7 +212,7 @@ func TestRunPodMonitorForSanity(t *testing.T) {
 	mon, faker := f.newMonitor(stop)
 
 	// syncHandler "replaced" by sth simpler...
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 

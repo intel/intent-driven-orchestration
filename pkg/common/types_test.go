@@ -15,7 +15,7 @@ func TestProfileTypeFromTextForSuccess(t *testing.T) {
 }
 
 // TestDistanceForSuccess tests for success.
-func TestDistanceForSuccess(t *testing.T) {
+func TestDistanceForSuccess(_ *testing.T) {
 	s0 := State{
 		Intent: Intent{
 			Key:        "default/foo",
@@ -51,7 +51,7 @@ func TestDistanceForSuccess(t *testing.T) {
 }
 
 // TestDeepCopyStateForSuccess tests for success.
-func TestDeepCopyStateForSuccess(t *testing.T) {
+func TestDeepCopyStateForSuccess(_ *testing.T) {
 	state := State{
 		Intent: Intent{
 			Key:        "default/foo",
@@ -65,7 +65,7 @@ func TestDeepCopyStateForSuccess(t *testing.T) {
 }
 
 // TestIsBetterStateForSuccess tests for success.
-func TestIsBetterStateForSuccess(t *testing.T) {
+func TestIsBetterStateForSuccess(_ *testing.T) {
 	s0 := State{
 		Intent: Intent{
 			Key:        "default/foo",
@@ -85,15 +85,15 @@ func TestIsBetterStateForSuccess(t *testing.T) {
 }
 
 // TestLessResourcesForSuccess tests for success.
-func TestLessResourcesForSuccess(t *testing.T) {
+func TestLessResourcesForSuccess(_ *testing.T) {
 	s0 := State{
-		Resources: map[string]string{
-			"0_cpu": "1",
+		Resources: map[string]int64{
+			"0_cpu": 1,
 		},
 	}
 	s1 := State{
-		Resources: map[string]string{
-			"0_cpu": "2",
+		Resources: map[string]int64{
+			"0_cpu": 2,
 		},
 	}
 	s0.LessResources(&s1)
@@ -202,7 +202,7 @@ func TestDeepCopyStateForSanity(t *testing.T) {
 		},
 		},
 		CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
-		Resources:   map[string]string{"0_cpu": "100Mi"},
+		Resources:   map[string]int64{"0_cpu": 100},
 		Annotations: map[string]string{"llc": "0x1"},
 	}
 	res := state.DeepCopy()
@@ -270,8 +270,8 @@ func TestIsBetterStateForSanity(t *testing.T) {
 				"availability": 0.99,
 			},
 		},
-		Resources: map[string]string{
-			"cpu": "1",
+		Resources: map[string]int64{
+			"cpu": 1,
 		},
 	}
 	s1 := s0.DeepCopy()
@@ -285,10 +285,20 @@ func TestIsBetterStateForSanity(t *testing.T) {
 	s5.Intent.Objectives["availability"] = 0.96
 	s6 := s0.DeepCopy()
 	delete(s6.Intent.Objectives, "p99")
+	s7 := s0.DeepCopy()
+	s7.Intent.Objectives["power"] = 75
+	s8 := s7.DeepCopy()
+	s8.Intent.Objectives["power"] = 100
+	s9 := s0.DeepCopy()
+	s9.Intent.Objectives["rps"] = 12
+	s10 := s9.DeepCopy()
+	s10.Intent.Objectives["rps"] = 10
 
 	profiles := map[string]Profile{
 		"p99":          {ProfileType: ProfileTypeFromText("latency")},
 		"availability": {ProfileType: ProfileTypeFromText("availability")},
+		"power":        {ProfileType: ProfileTypeFromText("power")},
+		"rps":          {ProfileType: ProfileTypeFromText("throughput")},
 	}
 
 	// deep-copy should be equal.
@@ -308,21 +318,29 @@ func TestIsBetterStateForSanity(t *testing.T) {
 	if s6.IsBetter(&s0, profiles) != false {
 		t.Errorf("Should be uncomparable --> false.")
 	}
+	// s7 has better power then s8.
+	if s7.IsBetter(&s8, profiles) != true {
+		t.Errorf("Should be better as s8: %v - %v.", s7, s8)
+	}
+	// s9 has better throughput then s10.
+	if s9.IsBetter(&s10, profiles) != true {
+		t.Errorf("Should be better as s10: %v - %v.", s9, s10)
+	}
 }
 
 // TestLessResourcesForSanity tests for sanity.
 func TestLessResourcesForSanity(t *testing.T) {
 	s0 := State{
-		Resources: map[string]string{
-			"0_cpu": "1024",
-			"1_cpu": "1024",
+		Resources: map[string]int64{
+			"0_cpu": 1024,
+			"1_cpu": 1024,
 		},
 	}
 	s1 := s0.DeepCopy()
 	s2 := s1.DeepCopy()
-	s2.Resources["0_cpu"] = "2048"
+	s2.Resources["0_cpu"] = 2048
 	s3 := s0.DeepCopy()
-	s3.Resources["2_cpu"] = "2"
+	s3.Resources["2_cpu"] = 2
 
 	// deep-copy should be equal.
 	res := s0.LessResources(&s1)

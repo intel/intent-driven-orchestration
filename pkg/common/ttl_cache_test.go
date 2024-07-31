@@ -8,14 +8,14 @@ import (
 // Tests for success.
 
 // TestPutForSuccess tests for success.
-func TestPutForSuccess(t *testing.T) {
+func TestPutForSuccess(_ *testing.T) {
 	cache, done := NewCache(10, time.Duration(100))
 	defer close(done)
 	cache.Put("foo")
 }
 
 // TestIsInForSuccess tests for success.
-func TestIsInForSuccess(t *testing.T) {
+func TestIsInForSuccess(_ *testing.T) {
 	cache, done := NewCache(10, time.Duration(100))
 	defer close(done)
 	cache.Put("foo")

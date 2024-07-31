@@ -10,7 +10,7 @@ import (
 // Tests for success.
 
 // TestAddNodeForSuccess tests for success.
-func TestAddNodeForSuccess(t *testing.T) {
+func TestAddNodeForSuccess(_ *testing.T) {
 	g := newStateGraph()
 	node0 := Node{"foo"}
 	node1 := Node{"bar"}
@@ -19,7 +19,7 @@ func TestAddNodeForSuccess(t *testing.T) {
 }
 
 // TestAddEdgeForSuccess tests for success.
-func TestAddEdgeForSuccess(t *testing.T) {
+func TestAddEdgeForSuccess(_ *testing.T) {
 	g := newStateGraph()
 	node0 := Node{"foo"}
 	node1 := Node{"bar"}
@@ -96,7 +96,7 @@ func TestToDotForSanity(t *testing.T) {
 }
 
 // TestStatGraphForSanity tests for sanity.
-func TestStatGraphForSanity(t *testing.T) {
+func TestStatGraphForSanity(_ *testing.T) {
 	g := newStateGraph()
 	start := Node{"DeploymentWithOnePod"}
 	morePods := Node{"DeploymentWithTwoPods"}

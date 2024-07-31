@@ -13,7 +13,7 @@ type Plugin interface {
 	Group() string
 }
 
-// ActuatorPlugin defines the interface for the actuators.
+// Actuator defines the interface for the actuators.
 type Actuator interface {
 	Plugin
 	// NextState should return a set of potential follow-up states for a given state if this actuator would potentially be used.

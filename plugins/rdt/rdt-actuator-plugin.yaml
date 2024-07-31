@@ -8,7 +8,11 @@ data:
       "interpreter": "python3",
       "analytics_script": "./pkg/planner/actuators/platform/analyze.py",
       "prediction_script": "./pkg/planner/actuators/platform/predict.py",
-      "options": ["None", "COS1", "COS2", "COS3"],
+      "options": [
+        "None",
+        "COS1",
+        "COS2",
+        "COS3"],
       "endpoint": "rdt-actuator-service",
       "port": 33334,
       "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
@@ -25,12 +29,12 @@ metadata:
 spec:
   serviceAccountName: planner-service-account
   containers:
-  - name: rdt-actuator
-    image: 127.0.0.1:5000/rdt:0.2.0
-    args: [ "-config", "/config/defaults.json" ]
-    ports:
-    - containerPort: 33334
-    securityContext:
+    - name: rdt-actuator
+      image: 127.0.0.1:5000/rdt:0.3.0
+      args: [ "-config", "/config/defaults.json" ]
+      ports:
+        - containerPort: 33334
+      securityContext:
         capabilities:
           drop: [ 'ALL' ]
         seccompProfile:
@@ -40,24 +44,24 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
-    resources:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        memory: "512Mi"
-        cpu: "500m"
-    volumeMounts:
-      - name: matplotlib-tmp
-        mountPath: /var/tmp
-      - name: rdt-configmap-volume
-        mountPath: /config/
-    env:
-    # Needed for the analytics python script.
-    - name: MONGO_URL
-      value: "mongodb://planner-mongodb-service:27017/"
-    - name: MPLCONFIGDIR 
-      value: /var/tmp  
+      resources:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+      volumeMounts:
+        - name: matplotlib-tmp
+          mountPath: /var/tmp
+        - name: rdt-configmap-volume
+          mountPath: /config/
+      env:
+        # Needed for the analytics python script.
+        - name: MONGO_URL
+          value: "mongodb://planner-mongodb-service:27017/"
+        - name: MPLCONFIGDIR
+          value: /var/tmp
   volumes:
     - name: matplotlib-tmp
       emptyDir:

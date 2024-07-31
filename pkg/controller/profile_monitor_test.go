@@ -184,7 +184,7 @@ func TestRunKPIProfileMonitorForSuccess(t *testing.T) {
 	mon, faker := f.newMonitor(stopChannel)
 
 	// syncHandler "replaced" by sth simpler...
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 
@@ -229,7 +229,7 @@ func TestRunKPIProfileMonitorForFailure(t *testing.T) {
 
 	// syncHandler bails out.
 	mon, faker := f.newMonitor(stopChannel)
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return errors.New("whoops")
 	}
 
@@ -261,7 +261,7 @@ func TestRunKPIProfileMonitorForSanity(t *testing.T) {
 	mon, faker := f.newMonitor(stopChannel)
 
 	// syncHandler "replaced" by sth simpler...
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 

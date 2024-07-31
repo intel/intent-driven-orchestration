@@ -27,7 +27,7 @@ var warmupLock = sync.RWMutex{}
 // IntentController defines the overall intent controller.
 type IntentController struct {
 	cfg          common.Config
-	clientSet    *kubernetes.Clientset
+	clientSet    kubernetes.Interface
 	podInformer  v1.PodInformer
 	tasks        chan string
 	intents      map[string]common.Intent
@@ -43,7 +43,7 @@ type IntentController struct {
 }
 
 // NewController initializes a new IntentController.
-func NewController(cfg common.Config, clientSet *kubernetes.Clientset, informer v1.PodInformer) *IntentController {
+func NewController(cfg common.Config, tracer Tracer, clientSet kubernetes.Interface, informer v1.PodInformer) *IntentController {
 	if cfg.Controller.TaskChannelLength <= 0 ||
 		cfg.Controller.TaskChannelLength > common.MaxTaskChannelLen {
 		klog.Error("invalid input value. Check documentation for the allowed limit")
@@ -58,7 +58,7 @@ func NewController(cfg common.Config, clientSet *kubernetes.Clientset, informer 
 		intents:     make(map[string]common.Intent),
 		profiles:    make(map[string]common.Profile),
 		podErrors:   make(map[string][]common.PodError),
-		tracer:      NewMongoTracer(cfg.Generic.MongoEndpoint),
+		tracer:      tracer,
 	}
 	c.planCache, _ = common.NewCache(cfg.Controller.PlanCacheTTL, time.Duration(cfg.Controller.PlanCacheTimeout))
 	return c
@@ -159,8 +159,10 @@ func (c *IntentController) worker(id int, tasks <-chan string) {
 			klog.Info("no planner configured")
 			continue
 		}
+		c.intentsLock.Lock()
 		current := getCurrentState(c.cfg.Controller, c.clientSet, c.podInformer, c.intents[key], c.podErrors, c.profiles)
 		desired := getDesiredState(c.intents[key])
+		c.intentsLock.Unlock()
 		plan := planner.CreatePlan(current, desired, c.profiles)
 		klog.Infof("Planner output for %s was: %v", key, plan)
 		_, err := os.Stat(lockFile)
@@ -191,12 +193,12 @@ func (c *IntentController) Run(nWorkers int, stopper <-chan struct{}) {
 				return
 			case t := <-ticker.C:
 				klog.V(2).Infof("Tick at: %s", t)
+				warmupLock.Lock()
 				if !warmupDone {
 					// This is stupid - to many ifs; but works for now.
-					warmupLock.Lock()
 					warmupDone = true
-					warmupLock.Unlock()
 				}
+				warmupLock.Unlock()
 				c.processIntents()
 			}
 			runtime.Gosched()

@@ -143,7 +143,7 @@ func TestRunIntentMonitorForSuccess(t *testing.T) {
 	defer close(stopper)
 
 	mon, faker := f.newMonitor(stopper)
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 
@@ -173,7 +173,7 @@ func TestRunIntentMonitorForFailure(t *testing.T) {
 
 	// syncHandler bails out.
 	mon, faker := f.newMonitor(stopChannel)
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return errors.New("oh")
 	}
 
@@ -205,7 +205,7 @@ func TestRunIntentMonitorForSanity(t *testing.T) {
 	mon, faker := f.newMonitor(stopChannel)
 
 	// syncHandler "replaced" by sth simpler...
-	mon.syncHandler = func(key string) error {
+	mon.syncHandler = func(_ string) error {
 		return nil
 	}
 

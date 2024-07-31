@@ -1,0 +1,7 @@
+{
+  "interpreter": "echo",
+  "analytics_script": "",
+  "max_pods": 10,
+  "look_back": 20,
+  "max_proactive_scale_out": 0
+}

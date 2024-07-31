@@ -46,7 +46,10 @@ func newTestPluginManager(ctx context.Context) (protobufs.RegistrationClient, fu
 	go func() {
 		err := s.Serve(listener)
 		if err != nil {
-			klog.Exit(err)
+			if err == grpc.ErrServerStopped {
+				klog.Info("Server stopped")
+			}
+			klog.Errorf("Server serve error: %v", err)
 		}
 	}()
 

@@ -72,7 +72,7 @@ spec:
           type: string
           description: "Target intents."
           jsonPath: .spec.objectives[*].targetName
-          # BUG: https://github.com/kubernetes/kubectl/issues/517
+          # Won't fix: https://github.com/kubernetes/kubectl/issues/517
         - name: Prio
           type: number
           description: "Priority."
@@ -122,7 +122,8 @@ spec:
                     - availability
                     - latency
                     - throughput
-                    # TODO: power
+                    - power
+                    # TODO: carbon
                     # TODO: assure cardinality: 0..1 avail & throughput, 0..* latency.
                 props:
                   type: object

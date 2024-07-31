@@ -1,0 +1,18 @@
+{
+  "default/p50latency": {
+    "query": "default/p50latency&namespace=\"%s\"&type=\"%s\"&name=\"%s\"&?by=\"%s\"",
+    "endpoint": "http://127.0.0.1:39090/query"
+  },
+  "default/p95latency": {
+    "query": "default/p95latency&namespace=\"%s\"&type=\"%s\"&name=\"%s\"&?by=\"%s\"",
+    "endpoint": "http://127.0.0.1:39090/query"
+  },
+  "default/p99latency": {
+    "query": "default/p99latency&namespace=\"%s\"&type=\"%s\"&name=\"%s\"&?by=\"%s\"",
+    "endpoint": "http://127.0.0.1:39090/query"
+  },
+  "default/throughput": {
+    "query": "default/throughput&namespace=\"%s\"&type=\"%s\"&name=\"%s\"&?by=\"%s\"",
+    "endpoint": "http://127.0.0.1:39090/query"
+  }
+}

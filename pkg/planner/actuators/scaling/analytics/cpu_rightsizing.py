@@ -42,6 +42,7 @@ def _get_cpu(resources):
         tmp = key.split('_')
         if int(tmp[0]) > last and tmp[1] == 'cpu' and tmp[2] == 'limits':
             res = int(val) / 1000
+            last = int(tmp[0])
     return res
 
 
@@ -86,10 +87,16 @@ def get_data(args):
                                             'cpus')],
                       inplace=True)
 
-    # Keeping first will lead to the latest value being taken.
-    data.drop_duplicates(subset=["cpus"], inplace=True, keep="first")
+    if data.empty:
+        return None
     data = data[(data[args.latency] != -1.0)]
-    data.dropna(inplace=True)
+    data = data.dropna()
+
+    # keep the 10% of lowest values.
+    n_items = round(len(data)*0.1)
+    data = data.groupby(['cpus']).apply(
+        lambda x: x.nsmallest(n=n_items,
+                              columns=args.latency)).reset_index(drop=True)
 
     return data
 
@@ -108,7 +115,7 @@ def store_result(popt,
     latency_range = (min(data[args.latency]), max(data[args.latency]))
     cpu_range = (min(data["cpus"]), max(data["cpus"]))
     training_features = ["cpus"]
-    timestamp = datetime.datetime.now()
+    timestamp = datetime.datetime.utcnow()
     doc = {"name": args.name,
            "profileName": args.latency,
            "group": "vertical_scaling",
@@ -144,7 +151,8 @@ def analyse(data, args):
     try:
         popt, _ = optimize.curve_fit(latency_func,
                                      data["cpus"],
-                                     data[args.latency], method="trf")
+                                     data[args.latency],
+                                     bounds=([0, 0.2, 0], [np.inf, 5, np.inf]))
     except (ValueError, RuntimeError) as err:
         logging.warning("Could not curve fit: %s.", err)
         return None, None
@@ -161,8 +169,7 @@ def plot_results(data, popt, args):
     """
     Visualize the results and return base6 encoded img.
     """
-    fig = plt.Figure(figsize=FIG_SIZE)
-    axes = fig.add_subplot()
+    fig, axes = plt.subplots(1, 1, figsize=FIG_SIZE)
 
     axes.scatter(data["cpus"], data[args.latency],
                  marker="o", color="black", alpha=0.5)
@@ -188,6 +195,10 @@ def main(args):
     Main logic.
     """
     data = get_data(args)
+    if data is None:
+        logging.info("Not enough data collected for: %s - %s.",
+                     args.name, args.latency)
+        return
     popt, data = analyse(data, args)
     if popt is not None:
         img = plot_results(data, popt, args)
@@ -231,7 +242,7 @@ if __name__ == "__main__":
                         help="Name of the objective.")
     parser.add_argument("latency", type=str,
                         help="Name of the latency objective.")
-    parser.add_argument("--min_vals", type=int, default=10,
+    parser.add_argument("--min_vals", type=int, default=20,
                         help="Amount of features we want to collect before "
                              "even training a model")
     parser.add_argument("--max_vals", type=int, default=500,

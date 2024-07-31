@@ -51,7 +51,7 @@ func NewKPIProfileMonitor(cfg common.MonitorConfig, profileClient clientSet.Inte
 		profileClient:   profileClient,
 		profileLister:   profileInformer.Lister(),
 		profileSynced:   profileInformer.Informer().HasSynced,
-		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "KPIProfiles"),
+		queue:           workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "KPIProfiles"}),
 		update:          ch,
 		defaultProfiles: result,
 	}
@@ -173,7 +173,7 @@ func (mon *KPIProfileMonitor) processProfile(key string) error {
 			mon.updateStatus(profile, true, "ok")
 			mon.update <- parsedProfile
 		} else {
-			mon.updateStatus(profile, false, "Both and query endpoint and a query need to be defined.")
+			mon.updateStatus(profile, false, "Both a endpoint and a query need to be defined.")
 			mon.update <- common.Profile{Key: key, ProfileType: common.Obsolete, External: true}
 		}
 	}

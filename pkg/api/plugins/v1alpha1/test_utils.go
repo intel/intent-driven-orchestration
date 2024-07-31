@@ -41,7 +41,7 @@ func generateActuatorGrpcValidationSet() *ActuatorGrpcValidationSet {
 				Data: map[string]float64{"host0": 20.0},
 			},
 			},
-			Resources:   map[string]string{"cpu": "23"},
+			Resources:   map[string]int64{"cpu": 23},
 			Annotations: map[string]string{"foo": "bar"},
 		},
 		goal: &protobufs.State{
@@ -70,7 +70,7 @@ func generateActuatorGrpcValidationSet() *ActuatorGrpcValidationSet {
 				},
 				CurrentPods: map[string]*protobufs.PodState{"pod_0": {Availability: 0.6}},
 				CurrentData: map[string]*protobufs.DataEntry{"cpu_value": {Data: map[string]float64{"host0": 21.3}}},
-				Resources:   map[string]string{"cpu": "12"},
+				Resources:   map[string]int64{"cpu": 12},
 				Annotations: map[string]string{"foo": "bar"},
 			},
 		},
@@ -87,7 +87,7 @@ func generateActuatorGrpcValidationSet() *ActuatorGrpcValidationSet {
 				Name: "action 2",
 				Properties: &protobufs.ActionProperties{
 					Type:          protobufs.PropertyType_INT_PROPERTY,
-					IntProperties: map[string]int32{"option3": 42},
+					IntProperties: map[string]int64{"option3": 42},
 				},
 			},
 		},
@@ -109,7 +109,7 @@ func generateActuatorValidationSet() *ActuatorValidationSet {
 			},
 			CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.7}},
 			CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
-			Resources:   map[string]string{"cpu": "23"},
+			Resources:   map[string]int64{"cpu": 23},
 			Annotations: map[string]string{"foo": "bar"},
 		},
 		goal: &common.State{
@@ -138,7 +138,7 @@ func generateActuatorValidationSet() *ActuatorValidationSet {
 				},
 				CurrentPods: map[string]common.PodState{"pod_0": {Availability: 0.6}},
 				CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 21.3}},
-				Resources:   map[string]string{"cpu": "12"},
+				Resources:   map[string]int64{"cpu": 12},
 				Annotations: map[string]string{"foo": "bar"},
 			},
 		},
@@ -150,7 +150,7 @@ func generateActuatorValidationSet() *ActuatorValidationSet {
 			},
 			{
 				Name:       "action 2",
-				Properties: map[string]int32{"option3": 42},
+				Properties: map[string]int64{"option3": 42},
 			},
 		},
 	}

@@ -126,7 +126,7 @@ func (pm *PluginManagerServer) Start() error {
 	}()
 	go wait.Until(func() { pm.refreshRegisteredPlugin(pm.retries) }, pm.reconcilePeriod, pm.stop)
 	var lastDialErr error
-	err = wait.PollImmediate(1*time.Second, 10*time.Second, func() (bool, error) { // TODO: make configurable.
+	err = wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(_ context.Context) (bool, error) { // TODO: make configurable.
 		var conn *grpc.ClientConn
 		conn, lastDialErr = grpc.Dial(fmt.Sprintf("localhost:%d", pm.port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if lastDialErr != nil {

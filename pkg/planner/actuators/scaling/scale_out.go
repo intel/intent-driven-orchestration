@@ -38,11 +38,11 @@ type ScaleOutConfig struct {
 	LookBack               int     `json:"look_back"`
 	MaxProActiveScaleOut   int     `json:"max_proactive_scale_out"`
 	ProActiveLatencyFactor float64 `json:"proactive_latency_factor"`
-	Port                   int     `json:"port"`
 	Endpoint               string  `json:"endpoint"`
-	MongoEndpoint          string  `json:"mongo_endpoint"`
+	Port                   int     `json:"port"`
 	PluginManagerEndpoint  string  `json:"plugin_manager_endpoint"`
 	PluginManagerPort      int     `json:"plugin_manager_port"`
+	MongoEndpoint          string  `json:"mongo_endpoint"`
 }
 
 // ScaleOutEffect describes the data that is stored in the knowledge base.
@@ -52,7 +52,7 @@ type ScaleOutEffect struct {
 	ThroughputRange  [2]float64
 	ThroughputScale  [2]float64
 	ReplicaRange     [2]int
-	Popt             [5]float64
+	Popt             [4]float64
 	TrainingFeatures [2]string
 	TargetFeature    string
 	Image            string
@@ -85,12 +85,12 @@ func averageAvailability(pods map[string]common.PodState) float64 {
 }
 
 // predictLatency uses the knowledge base to forecast the latency.
-func predictLatency(popt [5]float64, throughput float64, numPods int) float64 {
+func predictLatency(popt [4]float64, throughput float64, numPods int) float64 {
 	// TODO: predict future throughput.
 	if numPods == 0 || throughput == 0 {
 		return 0.0
 	}
-	return popt[0] + popt[1]*math.Exp(popt[2]*throughput) + popt[3]*math.Exp(-popt[4]*float64(numPods))
+	return (popt[0] * math.Exp(popt[1]*throughput)) / (popt[2] * math.Exp(popt[3]*throughput*float64(numPods)))
 }
 
 // findState tries to determine the best possible # of replicas.
@@ -104,7 +104,7 @@ func (scale ScaleOutActuator) findState(state *common.State, goal *common.State,
 				res, err := scale.tracer.GetEffect(state.Intent.Key, scale.Group(), k, scale.cfg.LookBack, func() interface{} {
 					return &ScaleOutEffect{}
 				})
-				if err != nil || len(res.(*ScaleOutEffect).ReplicaRange) < 1 {
+				if err != nil {
 					return common.State{}, fmt.Errorf("no valid effect data found in knowledge base: %s - %v", err, res)
 				}
 				if len(newState.CurrentPods) > res.(*ScaleOutEffect).ReplicaRange[1] {
@@ -151,25 +151,25 @@ func (scale ScaleOutActuator) NextState(state *common.State, goal *common.State,
 					tempState.Intent.Objectives[name] *= scale.cfg.ProActiveLatencyFactor
 				}
 			}
-			return []common.State{tempState}, []float64{0.1}, []planner.Action{{Name: scale.Name(), Properties: map[string]int32{"factor": 1, "proactive": 1}}}
+			return []common.State{tempState}, []float64{0.1}, []planner.Action{{Name: scale.Name(), Properties: map[string]int64{"factor": 1, "proactive": 1}}}
 		}
 		return nil, nil, nil
 	}
 	utility := 0.9 + (float64(len(newState.CurrentPods))/float64(scale.cfg.MaxPods))*(1.0/goal.Intent.Priority)
 	return []common.State{newState}, []float64{utility}, []planner.Action{
-		{Name: scale.Name(), Properties: map[string]int32{"factor": int32(len(newState.CurrentPods) - len(state.CurrentPods))}},
+		{Name: scale.Name(), Properties: map[string]int64{"factor": int64(len(newState.CurrentPods) - len(state.CurrentPods))}},
 	}
 }
 
 func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action) {
 	// calculate the scale factor
-	var factor int32
+	var factor int64
 	factor = 0
 	for _, item := range plan {
 		if item.Name == rmPodActionName {
 			factor--
 		} else if item.Name == scaleOutActionName {
-			factor += item.Properties.(map[string]int32)["factor"]
+			factor += item.Properties.(map[string]int64)["factor"]
 		}
 	}
 
@@ -188,7 +188,8 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				klog.Errorf("failed to get latest version of: %v", err)
 				return err
 			}
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + factor)
+			// conversion to int32 is ok - as we have a MaxPods defined
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().Deployments(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr
@@ -205,7 +206,8 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				klog.Errorf("failed to get latest version of: %v", err)
 				return err
 			}
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + factor)
+			// conversion to int32 is ok - as we have a MaxPods defined
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().ReplicaSets(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr
@@ -219,6 +221,10 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 }
 
 func (scale ScaleOutActuator) Effect(state *common.State, profiles map[string]common.Profile) {
+	if scale.cfg.Script == "None" {
+		klog.V(2).Infof("Effect calculation is disabled - will not run analytics.")
+		return
+	}
 	throughputObjective := ""
 	var latencyObjectives []string
 

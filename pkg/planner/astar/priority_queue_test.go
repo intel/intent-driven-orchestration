@@ -8,14 +8,14 @@ import (
 // Tests for success.
 
 // TestLenForSuccess tests for success.
-func TestLenForSuccess(t *testing.T) {
+func TestLenForSuccess(_ *testing.T) {
 	queue := make(PriorityQueue, 0)
 	heap.Init(&queue)
 	queue.Len()
 }
 
 // TestLessForSuccess tests for success.
-func TestLessForSuccess(t *testing.T) {
+func TestLessForSuccess(_ *testing.T) {
 	queue := make(PriorityQueue, 0)
 	heap.Init(&queue)
 	item1 := &Item{
@@ -32,7 +32,7 @@ func TestLessForSuccess(t *testing.T) {
 }
 
 // TestSwapForSuccess tests for success.
-func TestSwapForSuccess(t *testing.T) {
+func TestSwapForSuccess(_ *testing.T) {
 	queue := make(PriorityQueue, 0)
 	heap.Init(&queue)
 	item1 := &Item{
@@ -49,7 +49,7 @@ func TestSwapForSuccess(t *testing.T) {
 }
 
 // TestPushForSuccess tests for success.
-func TestPushForSuccess(t *testing.T) {
+func TestPushForSuccess(_ *testing.T) {
 	queue := make(PriorityQueue, 0)
 	heap.Init(&queue)
 	item := &Item{
@@ -60,7 +60,7 @@ func TestPushForSuccess(t *testing.T) {
 }
 
 // TestPopForSuccess tests for success.
-func TestPopForSuccess(t *testing.T) {
+func TestPopForSuccess(_ *testing.T) {
 	queue := make(PriorityQueue, 0)
 	heap.Init(&queue)
 	item := &Item{

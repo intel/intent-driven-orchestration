@@ -4,49 +4,34 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-
-	"k8s.io/client-go/rest"
 
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
 
-	val "github.com/intel/intent-driven-orchestration/plugins"
+	pluginsHelper "github.com/intel/intent-driven-orchestration/plugins"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	plugins "github.com/intel/intent-driven-orchestration/pkg/api/plugins/v1alpha1"
 	"github.com/intel/intent-driven-orchestration/pkg/common"
-	"github.com/intel/intent-driven-orchestration/pkg/planner"
-	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators"
 	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators/scaling"
 
 	"k8s.io/klog/v2"
 )
+
+// / maxCPUValue defines the maximum amount of CPU units.
+const maxCPUValue = int64(1000 * 1024)
+
+// maxLookBack defines the maximum age a model in the knowledge base can have (1 week)
+const maxLookBack = 10080
 
 var (
 	kubeConfig string
 	config     string
 )
 
-type CPUScalePluginHandler struct {
-	actuator actuators.Actuator
-}
-
-func (s *CPUScalePluginHandler) NextState(state *common.State, goal *common.State,
-	profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
-	klog.InfoS("From plugin: Invoked CPUScale Next State Callback")
-	return s.actuator.NextState(state, goal, profiles)
-}
-
-func (s *CPUScalePluginHandler) Perform(state *common.State, plan []planner.Action) {
-	klog.InfoS("From plugin: Invoked CPUScale Perform Callback")
-	s.actuator.Perform(state, plan)
-}
-
-func (s *CPUScalePluginHandler) Effect(state *common.State, profiles map[string]common.Profile) {
-	klog.InfoS("From plugin: Invoked CPUScale Effect Callback")
-	s.actuator.Effect(state, profiles)
+func init() {
+	flag.StringVar(&kubeConfig, "kubeConfig", "", "Path to a kube config file.")
+	flag.StringVar(&config, "config", "", "Path to configuration file.")
 }
 
 func main() {
@@ -56,96 +41,74 @@ func main() {
 	tmp, err := common.LoadConfig(config, func() interface{} {
 		return &scaling.CPUScaleConfig{}
 	})
-
 	if err != nil {
 		klog.Fatalf("Error loading configuration for actuator: %s", err)
 	}
-
 	cfg := tmp.(*scaling.CPUScaleConfig)
 
-	err = isValidConf(cfg.CPUMax, cfg.CPURounding, cfg.MaxProActiveCPU,
-		cfg.CPUSafeGuardFactor, cfg.ProActiveLatencyPercentage)
+	// validate configuration.
+	err = pluginsHelper.IsValidGenericConf(cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort, cfg.MongoEndpoint)
+	if err != nil {
+		klog.Fatalf("Error on generic configuration for actuator: %s", err)
+	}
+	err = isValidConf(cfg.PythonInterpreter, cfg.Script, cfg.CPUMax, cfg.CPURounding, cfg.MaxProActiveCPU,
+		cfg.CPUSafeGuardFactor, cfg.ProActiveLatencyPercentage, cfg.LookBack)
 	if err != nil {
 		klog.Fatalf("Error on configuration for actuator: %s", err)
 	}
 
-	err = val.IsValidGenericConf(cfg.LookBack, cfg.PluginManagerPort, cfg.Port,
-		cfg.PythonInterpreter, cfg.Script, cfg.Endpoint, cfg.PluginManagerEndpoint, cfg.MongoEndpoint)
-	if err != nil {
-		klog.Fatalf("Error on generic configuration for actuator: %s", err)
-	}
-
-	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
-	var config *rest.Config
-	config, err = clientcmd.BuildConfigFromFlags("", kubeConfig)
-
+	// get K8s config.
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		klog.Fatalf("Error getting Kubernetes config: %s", err)
 	}
-
-	var clusterClient *kubernetes.Clientset
-	clusterClient, err = kubernetes.NewForConfig(config)
-
+	clusterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("Error creating Kubernetes cluster client: %s", err)
 	}
 
-	p := &CPUScalePluginHandler{
-		actuator: scaling.NewCPUScaleActuator(clusterClient, mt, *cfg),
-	}
-	stub := plugins.NewActuatorPluginStub(p.actuator.Name(), cfg.Endpoint, cfg.Port,
-		cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
-	stub.SetNextStateFunc(p.NextState)
-	stub.SetPerformFunc(p.Perform)
-	stub.SetEffectFunc(p.Effect)
-	err = stub.Start()
-
-	if err != nil {
-		klog.Fatalf("Error starting plugin server: %s", err)
-	}
-
-	err = stub.Register()
-
-	if err != nil {
-		klog.Fatalf("Error registering plugin: %s", err)
-	}
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-
-	err = stub.Stop()
-
-	if err != nil {
-		klog.Fatalf("Error stopping plugin server: %s", err)
-	}
+	// once configuration is ready & valid start the plugin mechanism.
+	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
+	actuator := scaling.NewCPUScaleActuator(clusterClient, mt, *cfg)
+	signal := pluginsHelper.StartActuatorPlugin(actuator, cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
+	<-signal
 }
 
-func init() {
-	flag.StringVar(&kubeConfig, "kubeConfig", "", "Path to a kube config file.")
-	flag.StringVar(&config, "config", "", "Path to configuration file.")
-}
+func isValidConf(interpreter, script string, confCPUMax, confCPURounding, confMaxProActiveCPU int64,
+	confCPUSafeGuardFactor, configProActiveLatencyPercentage float64, lookBack int) error {
+	if !pluginsHelper.IsStrConfigValid(interpreter) {
+		return fmt.Errorf("invalid path to python interpreter: %s", interpreter)
+	}
 
-func isValidConf(confCPUMax, confCPURounding, confMaxProActiveCPU int64,
-	confCPUSafeGuardFactor, configProActiveLatencyPercentage float64) error {
-	if confCPUMax <= 0 || confCPUMax > int64(1000*1024) {
-		return fmt.Errorf("invalid cpu numbers")
+	if script != "None" {
+		_, err := os.Stat(script)
+		if err != nil {
+			return fmt.Errorf("invalid script %s", err)
+		}
+	}
+
+	if confCPUMax <= 0 || confCPUMax > maxCPUValue {
+		return fmt.Errorf("invalid cpu numbers: %d", confCPUMax)
 	}
 
 	if confCPURounding <= 0 || confCPURounding > 1000 || confCPURounding%10 != 0 {
-		return fmt.Errorf("invalid round base")
-	}
-
-	if confCPUSafeGuardFactor <= 0 || confCPUSafeGuardFactor > 1 {
-		return fmt.Errorf("invalid safeguard factor")
+		return fmt.Errorf("invalid round base: %d", confCPURounding)
 	}
 
 	if confMaxProActiveCPU < 0 || confMaxProActiveCPU > confCPUMax {
-		return fmt.Errorf("invalid max proactive value")
+		return fmt.Errorf("invalid max proactive value: %d", confMaxProActiveCPU)
+	}
+
+	if confCPUSafeGuardFactor <= 0 || confCPUSafeGuardFactor > 1 {
+		return fmt.Errorf("invalid safeguard factor: %f", confCPUSafeGuardFactor)
 	}
 
 	if configProActiveLatencyPercentage < 0 || configProActiveLatencyPercentage > 1 {
-		return fmt.Errorf("invalid fraction value for proactive latency")
+		return fmt.Errorf("invalid fraction value for proactive latency: %f", configProActiveLatencyPercentage)
+	}
+
+	if lookBack <= 0 || lookBack > maxLookBack {
+		return fmt.Errorf("invalid lookback value: %d", lookBack)
 	}
 
 	return nil

@@ -22,18 +22,18 @@ The planner uses the actuators for a set of tasks:
 
 ## Interface
 
-The interface an actuator needs to implement is defined [here](../pkg/planner/actuators/interface.go).
+The interface an actuator needs to implement is defined [here](../pkg/planner/actuators/types.go).
 
-     // ActuatorPlugin defines the interface for the actuators.
-     type ActuatorPlugin interface {
-          Plugin
-          // NextState should return a set of potential follow-up states for a given state if this actuator would potentially be used.
-          NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action)
-          // Perform should perform those actions of the plan that it is in charge off.
-          Perform(state *common.State, plan []planner.Action)
-          // Effect should (optionally) recalculate the effect this actuator has for ALL objectives for this workload.
-          Effect(state *common.State, profiles map[string]common.Profile)
-     }
+    // Actuator defines the interface for the actuators.
+    type Actuator interface {
+        Plugin
+        // NextState should return a set of potential follow-up states for a given state if this actuator would potentially be used.
+        NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action)
+        // Perform should perform those actions of the plan that it is in charge off.
+        Perform(state *common.State, plan []planner.Action)
+        // Effect should (optionally) recalculate the effect this actuator has for ALL objectives for this workload.
+        Effect(state *common.State, profiles map[string]common.Profile)
+    }
 
 Each actuator will have a unique name and a group assignment.
 

@@ -34,7 +34,7 @@ func NewIntentMonitor(intentClient clientSet.Interface, intentInformer informers
 		intentClient: intentClient,
 		intentLister: intentInformer.Lister(),
 		intentSynced: intentInformer.Informer().HasSynced,
-		queue:        workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Intents"),
+		queue:        workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "Intents"}),
 		update:       ch,
 	}
 	mon.syncHandler = mon.processIntent

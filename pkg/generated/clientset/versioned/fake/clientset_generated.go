@@ -19,9 +19,6 @@ import (
 	clientset "github.com/intel/intent-driven-orchestration/pkg/generated/clientset/versioned"
 	idov1alpha1 "github.com/intel/intent-driven-orchestration/pkg/generated/clientset/versioned/typed/intents/v1alpha1"
 	fakeidov1alpha1 "github.com/intel/intent-driven-orchestration/pkg/generated/clientset/versioned/typed/intents/v1alpha1/fake"
-
-	"k8s.io/klog/v2"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -37,7 +34,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 	o := testing.NewObjectTracker(scheme, codecs.UniversalDecoder())
 	for _, obj := range objects {
 		if err := o.Add(obj); err != nil {
-			klog.Fatal(err)
+			panic(err)
 		}
 	}
 

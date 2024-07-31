@@ -61,7 +61,7 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 		podClient:     podClient,
 		podLister:     informer.Lister(),
 		podSynced:     informer.Informer().HasSynced,
-		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Pods"),
+		queue:         workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "Pods"}),
 		update:        ch,
 		podsWithError: make(map[string]bool),
 		cacheLock:     sync.Mutex{},

@@ -5,11 +5,16 @@ if ! [ -d "./vendor/k8s.io/code-generator/" ]; then
     exit 1
 fi
 
-SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
+REPO_DIR=$(git rev-parse --show-toplevel)
+source "${REPO_DIR}/vendor/k8s.io/code-generator/kube_codegen.sh"
 
-bash ./vendor/k8s.io/code-generator/generate-groups.sh "deepcopy,client,informer,lister" \
-  github.com/intel/intent-driven-orchestration/pkg/generated github.com/intel/intent-driven-orchestration/pkg/api \
-  intents:v1alpha1 \
-  --output-base "$SCRIPT_DIR/../../../.." \
-  --go-header-file "$SCRIPT_DIR/header.go.txt" \
-  -v 2
+kube::codegen::gen_helpers \
+    ${REPO_DIR}/pkg/api/ \
+    --boilerplate "${REPO_DIR}/hack/header.go.txt"
+
+kube::codegen::gen_client \
+    ${REPO_DIR}/pkg/api/ \
+    --with-watch \
+    --output-dir "${REPO_DIR}"/pkg/generated \
+    --output-pkg github.com/intel/intent-driven-orchestration/pkg/generated \
+    --boilerplate "${REPO_DIR}/hack/header.go.txt"

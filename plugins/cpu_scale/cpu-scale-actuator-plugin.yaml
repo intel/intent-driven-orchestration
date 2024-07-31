@@ -29,13 +29,13 @@ metadata:
 spec:
   serviceAccountName: planner-service-account
   containers:
-  - name: cpu-scale-actuator
-    image: 127.0.0.1:5000/cpuscale:0.2.0
-    imagePullPolicy: Always
-    args: [ "-config", "/config/defaults.json", "-v", "2" ]
-    ports:
-    - containerPort: 33334
-    securityContext:
+    - name: cpu-scale-actuator
+      image: 127.0.0.1:5000/cpuscale:0.3.0
+      imagePullPolicy: Always
+      args: [ "-config", "/config/defaults.json", "-v", "2" ]
+      ports:
+        - containerPort: 33334
+      securityContext:
         capabilities:
           drop: [ 'ALL' ]
         seccompProfile:
@@ -45,22 +45,24 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
-    resources:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        memory: "512Mi"
-        cpu: "500m"
-    volumeMounts:
-      - name: cpu-scale-configmap-volume
-        mountPath: /config/
-      - name: matplotlib-tmp
-        mountPath: /var/tmp
-    env:
-    # Needed for the analytics python script.
-    - name: MONGO_URL
-      value: "mongodb://planner-mongodb-service:27017/"
+      resources:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+      volumeMounts:
+        - name: cpu-scale-configmap-volume
+          mountPath: /config/
+        - name: matplotlib-tmp
+          mountPath: /var/tmp
+      env:
+        # Needed for the analytics python script.
+        - name: MONGO_URL
+          value: "mongodb://planner-mongodb-service:27017/"
+        - name: MPLCONFIGDIR
+          value: /var/tmp
   volumes:
     - name: matplotlib-tmp
       emptyDir:

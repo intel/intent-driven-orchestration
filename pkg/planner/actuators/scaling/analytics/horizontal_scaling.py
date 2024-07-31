@@ -32,15 +32,13 @@ FORMAT = '%(asctime)s - %(filename)-15s - %(threadName)-10s - ' \
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 
 
-def latency_func(data, p_0, p_1, p_2, p_3, p_4):
+def latency_func(data, p_0, p_1, p_2, p_3):
     """
     Latency function relating throughput, replicas and latency.
     """
     tput = data[0, :]
     n_pods = data[1, :]
-    # 1st part: higher traffic --> higher latency.
-    # 2nd part: more replicas --> lower latency.
-    return p_0 + p_1 * np.exp(p_2 * tput) + p_3 * np.exp(-p_4 * n_pods)
+    return (p_0 * np.exp(p_1 * tput)) / (p_2 * np.exp(p_3 * tput * n_pods))
 
 
 def get_data(args):
@@ -94,7 +92,7 @@ def store_result(popt,
                         (max(data[args.throughput]) - scale[1]) / scale[0])
     replica_range = (min(data["replicas"]), max(data["replicas"]))
     training_features = [args.throughput, "replicas"]
-    timestamp = datetime.datetime.now()
+    timestamp = datetime.datetime.utcnow()
     doc = {"name": args.name,
            "profileName": args.latency,
            "group": "scaling",
@@ -150,13 +148,13 @@ def analyse(data, args):
     tmp = [df_0[args.throughput], df_0["replicas"]]
     try:
         popt, _ = optimize.curve_fit(latency_func, tmp, df_0[args.latency],
-                                     bounds=(0, [np.inf, np.inf, 2, np.inf, 2]))
+                                     bounds=(0, np.inf))
     except (RuntimeError, ValueError) as err:
         logging.warning("Could not curve fit: %s.", err)
         return None, None, None
 
     # check if we have a proper model
-    if popt[2] > 0.0 and popt.sum() != 1.0:
+    if all(x > 0.0 for x in popt):
         return popt, df_0, scale
     logging.warning("Found inverted plane for: %s:%s (%s) - will discard.",
                     args.name, args.latency, popt)
@@ -167,8 +165,9 @@ def plot_results(data, popt, scale, args):
     """
     Visualize the results and return base6 encoded img.
     """
-    fig = plt.Figure(figsize=FIG_SIZE)
-    axes = fig.add_subplot(projection="3d")
+
+    fig, axes = plt.subplots(1, 1,
+                             subplot_kw={'projection': '3d'}, figsize=FIG_SIZE)
 
     tput_min, tput_max = data[args.throughput].min(), data[
         args.throughput].max()

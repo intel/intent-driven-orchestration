@@ -77,7 +77,7 @@ func TestTraceEventForSanity(t1 *testing.T) {
 		{name: "tc2", client: nil, args: args{plan: []planner.Action{}}},
 	}
 	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
+		t1.Run(tt.name, func(_ *testing.T) {
 			t := MongoTracer{
 				client: tt.client,
 			}
@@ -89,7 +89,6 @@ func TestTraceEventForSanity(t1 *testing.T) {
 // TestNewMongoTracerForSanity tests for failure.
 func TestNewMongoTracerForSanity(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-	defer mt.Close()
 	mt.Client, _ = mongo.Connect(context.TODO(), options.Client().ApplyURI(MongoURIForTesting))
 	tests := []struct {
 		name     string

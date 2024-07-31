@@ -1,9 +1,8 @@
 package astar
 
 import (
-	"reflect"
-
 	"container/heap"
+	"reflect"
 
 	"k8s.io/klog/v2"
 
@@ -164,7 +163,6 @@ func (p APlanner) CreatePlan(current common.State, desired common.State, profile
 	klog.V(2).Infof("State graph has %d nodes.", len(sg.nodes))
 	if goal {
 		_, actions := solve(sg, s0, g0, h, true, profiles)
-		// sg.toDot(path, "tmp.dot")
 		plan = actions
 	} else {
 		klog.Warning("No path to goal state possible!")

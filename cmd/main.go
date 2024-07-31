@@ -66,7 +66,8 @@ func main() {
 	defer planner.Stop()
 
 	// This is main controller.
-	c := controller.NewController(cfg, k8sClient, podInformerFactory.Core().V1().Pods())
+	tracer := controller.NewMongoTracer(cfg.Generic.MongoEndpoint)
+	c := controller.NewController(cfg, tracer, k8sClient, podInformerFactory.Core().V1().Pods())
 	c.SetPlanner(planner)
 
 	// 1/3 bring up the monitor for the KPIProfiles.

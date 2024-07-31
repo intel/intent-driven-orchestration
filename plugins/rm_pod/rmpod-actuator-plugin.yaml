@@ -23,12 +23,12 @@ metadata:
 spec:
   serviceAccountName: planner-service-account
   containers:
-  - name: rmpod-actuator
-    image: 127.0.0.1:5000/rmpod:0.2.0
-    args: [ "-config", "/config/defaults.json" ]
-    ports:
-    - containerPort: 33334
-    securityContext:
+    - name: rmpod-actuator
+      image: 127.0.0.1:5000/rmpod:0.3.0
+      args: [ "-config", "/config/defaults.json" ]
+      ports:
+        - containerPort: 33334
+      securityContext:
         capabilities:
           drop: [ 'ALL' ]
         seccompProfile:
@@ -38,16 +38,16 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
-    resources:
-      limits:
-        memory: "1024Mi"
-        cpu: "2000m"
-      requests:
-        memory: "512Mi"
-        cpu: "500m"
-    volumeMounts:
-      - name: rmpod-configmap-volume
-        mountPath: /config/
+      resources:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+      volumeMounts:
+        - name: rmpod-configmap-volume
+          mountPath: /config/
   volumes:
     - name: rmpod-configmap-volume
       configMap:

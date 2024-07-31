@@ -20,9 +20,6 @@ import (
 
 	v1alpha1 "github.com/intel/intent-driven-orchestration/pkg/api/intents/v1alpha1"
 	"github.com/intel/intent-driven-orchestration/pkg/generated/clientset/versioned/scheme"
-
-	"k8s.io/klog/v2"
-
 	rest "k8s.io/client-go/rest"
 )
 
@@ -79,7 +76,7 @@ func NewForConfigAndClient(c *rest.Config, h *http.Client) (*IdoV1alpha1Client, 
 func NewForConfigOrDie(c *rest.Config) *IdoV1alpha1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
-		klog.Fatal(err)
+		panic(err)
 	}
 	return client
 }

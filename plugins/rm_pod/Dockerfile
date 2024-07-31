@@ -1,7 +1,7 @@
 # Copyright (c) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-FROM golang:1.19 AS builder
+FROM golang:1.22 AS builder
 
 WORKDIR /plugins
 
