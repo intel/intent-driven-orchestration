@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +22,7 @@ func getPods(clientSet kubernetes.Interface,
 	informer v1.PodInformer,
 	targetKey string,
 	targetKind string,
-	podErrors map[string][]common.PodError) (map[string]common.PodState, map[string]string, map[string]string, []string) {
+	podErrors map[string][]common.PodError) (map[string]common.PodState, map[string]string, map[string]int64, []string) {
 	podStates := map[string]common.PodState{}
 	var hosts []string
 	tmp := strings.Split(targetKey, "/")
@@ -51,7 +50,7 @@ func getPods(clientSet kubernetes.Interface,
 	// Will ignore errors as pod list will be empty anyhow.
 	selector, _ := metaV1.LabelSelectorAsSelector(labels)
 	pods, _ := informer.Lister().Pods(tmp[0]).List(selector)
-	containerResources := map[string]string{}
+	containerResources := map[string]int64{}
 	var annotations map[string]string
 	for _, pod := range pods {
 		if len(annotations) != len(pod.ObjectMeta.Annotations) {
@@ -61,10 +60,10 @@ func getPods(clientSet kubernetes.Interface,
 		if len(containerResources) < 1 {
 			for i, container := range pod.Spec.Containers {
 				for name, requests := range container.Resources.Requests {
-					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "requests"}, resourceDelimiter)] = fmt.Sprint(requests.MilliValue())
+					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "requests"}, resourceDelimiter)] = requests.MilliValue()
 				}
 				for name, limits := range container.Resources.Limits {
-					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "limits"}, resourceDelimiter)] = fmt.Sprint(limits.MilliValue())
+					containerResources[strings.Join([]string{strconv.Itoa(i), name.String(), "limits"}, resourceDelimiter)] = limits.MilliValue()
 				}
 			}
 		}
@@ -131,6 +130,5 @@ func getCurrentState(
 
 // getDesiredState returns the desired state for an objective.
 func getDesiredState(objective common.Intent) common.State {
-	klog.Infof("getting a desired state %v for Planner to create a plan from an objective %v: ", common.State{Intent: objective}, objective)
 	return common.State{Intent: objective}
 }

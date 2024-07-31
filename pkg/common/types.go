@@ -4,8 +4,6 @@ import (
 	"math"
 	"strings"
 	"time"
-
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // ProfileType defines the type of KPIProfiles.
@@ -75,7 +73,7 @@ type State struct {
 	Intent      Intent
 	CurrentPods map[string]PodState
 	CurrentData map[string]map[string]float64
-	Resources   map[string]string
+	Resources   map[string]int64
 	Annotations map[string]string
 }
 
@@ -98,7 +96,7 @@ func (one *State) DeepCopy() State {
 		objective,
 		map[string]PodState{},
 		map[string]map[string]float64{},
-		map[string]string{},
+		map[string]int64{},
 		map[string]string{},
 	}
 
@@ -155,14 +153,15 @@ func (one *State) Distance(another *State, profiles map[string]Profile) float64 
 	return math.Sqrt(squaresSum)
 }
 
-// IsBetter compares the objectives of one state to another - returns true if all latency related objective targets are smaller or equal, and all others are larger or equal.
+// IsBetter compares the objectives of one state to another - returns true if all latency or power related objective targets are smaller or equal, and all others are larger or equal.
 func (one *State) IsBetter(another *State, profiles map[string]Profile) bool {
 	if len(one.Intent.Objectives) != len(another.Intent.Objectives) {
 		return false
 	}
 	res := false
 	for k, v := range one.Intent.Objectives {
-		if profiles[k].ProfileType == ProfileTypeFromText("latency") {
+		// TODO: make this configurable through the KPI profiles for which we define larger or smaller is better.
+		if profiles[k].ProfileType == ProfileTypeFromText("latency") || profiles[k].ProfileType == ProfileTypeFromText("power") {
 			if v <= another.Intent.Objectives[k] {
 				res = true
 			} else {
@@ -187,11 +186,7 @@ func (one *State) LessResources(another *State) bool {
 		if !ok {
 			return false
 		}
-		oneVal := resource.MustParse(v)
-		oneFloat := oneVal.AsApproximateFloat64()
-		anotherVal := resource.MustParse(tmp)
-		anotherFloat := anotherVal.AsApproximateFloat64()
-		if oneFloat <= anotherFloat {
+		if v <= tmp {
 			res = true
 		} else {
 			return false

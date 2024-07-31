@@ -4,7 +4,7 @@ RMPOD_PLUGIN=rm_pod
 RDT_PLUGIN=rdt
 CPU_PLUGIN=cpu_scale
 GO_CILINT_CHECKERS=errcheck,goimports,gosec,gosimple,govet,ineffassign,nilerr,revive,staticcheck,unused
-DOCKER_IMAGE_VERSION=0.2.0
+DOCKER_IMAGE_VERSION=0.3.0
 
 api:
 	hack/generate_code.sh
@@ -57,7 +57,7 @@ prepare-build:
 	go mod tidy
 
 utest:
-	go test -count=1 -v ./...
+	go test -count=1 -parallel 1 -v ./...
 
 test:
 	hack/run_test.sh

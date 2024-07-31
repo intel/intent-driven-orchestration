@@ -1,0 +1,20 @@
+{
+  "controller": {
+    "task_channel_length": 100,
+    "controller_timeout": 3,
+    "plan_cache_ttl": 1000,
+    "plan_cache_timeout": 100
+  },
+  "monitor": {
+    "profile": {
+      "queries": "traces/queries.json"
+    }
+  },
+  "planner": {
+    "astar": {
+      "opportunistic_candidates": 0,
+      "max_states": 2000,
+      "max_candidates": 10
+    }
+  }
+}

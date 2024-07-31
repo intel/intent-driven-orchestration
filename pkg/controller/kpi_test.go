@@ -15,8 +15,8 @@ func init() {
 // Tests for success.
 
 // TestDoQueryForSuccess tests for success.
-func TestDoQueryForSuccess(t *testing.T) {
-	responseBody := "{\"data\": {\"result\": [{\"value\": [1645019125.000, 1.23456780]}]}}"
+func TestDoQueryForSuccess(_ *testing.T) {
+	responseBody := "{\"data\": {\"result\": [{\"value\": [1645019125.000, \"1.23456780\"]}]}}"
 	MockResponse(responseBody, 200)
 	prof := common.Profile{
 		Key:         "default/my-p99-compliance",
@@ -36,13 +36,13 @@ func TestDoQueryForSuccess(t *testing.T) {
 }
 
 // TestPodAvailabilityForSuccess tests for success.
-func TestPodAvailabilityForSuccess(t *testing.T) {
+func TestPodAvailabilityForSuccess(_ *testing.T) {
 	var errors []common.PodError
 	podAvailability(errors, time.Now())
 }
 
 // TestPodSetAvailabilityForSuccess tests for success.
-func TestPodSetAvailabilityForSuccess(t *testing.T) {
+func TestPodSetAvailabilityForSuccess(_ *testing.T) {
 	PodSetAvailability(map[string]common.PodState{"pod0": {Availability: 0.8}})
 }
 

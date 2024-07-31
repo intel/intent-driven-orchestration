@@ -100,7 +100,7 @@ func (s *ActuatorPluginStub) Start() error {
 
 	var lastDialErr error
 	// TODO: make configurable.
-	err = wait.PollImmediate(1*time.Second, 10*time.Second, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(_ context.Context) (bool, error) {
 		var conn *grpc.ClientConn
 		conn, lastDialErr = grpc.Dial(fmt.Sprintf("%s:%d", s.endpoint, s.port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if lastDialErr != nil {
@@ -206,7 +206,7 @@ func toState(s *protobufs.State) *common.State {
 		},
 		CurrentPods: make(map[string]common.PodState),
 		CurrentData: make(map[string]map[string]float64),
-		Resources:   make(map[string]string),
+		Resources:   make(map[string]int64),
 		Annotations: make(map[string]string),
 	}
 

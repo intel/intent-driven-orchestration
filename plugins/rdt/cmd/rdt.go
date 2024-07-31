@@ -2,19 +2,19 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
+
+	pluginsHelper "github.com/intel/intent-driven-orchestration/plugins"
 
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
+
+	val "github.com/intel/intent-driven-orchestration/plugins"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"os"
-	"os/signal"
-
-	plugins "github.com/intel/intent-driven-orchestration/pkg/api/plugins/v1alpha1"
 	"github.com/intel/intent-driven-orchestration/pkg/common"
-	"github.com/intel/intent-driven-orchestration/pkg/planner"
-	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators"
 	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators/platform"
 
 	"k8s.io/klog/v2"
@@ -25,71 +25,73 @@ var (
 	config     string
 )
 
-// RdtPluginHandler represents the actual actuator.
-type RdtPluginHandler struct {
-	actuator actuators.Actuator
-}
-
-func (s *RdtPluginHandler) NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
-	klog.InfoS("Invoked rdt Next State Callback")
-	return s.actuator.NextState(state, goal, profiles)
-}
-
-func (s *RdtPluginHandler) Perform(state *common.State, plan []planner.Action) {
-	klog.InfoS("Invoked rdt Perform Callback")
-	s.actuator.Perform(state, plan)
-}
-
-func (s *RdtPluginHandler) Effect(state *common.State, profiles map[string]common.Profile) {
-	klog.InfoS("Invoked rdt Effect Callback")
-	s.actuator.Effect(state, profiles)
+func init() {
+	flag.StringVar(&kubeConfig, "kubeConfig", "", "Path to a kube config file.")
+	flag.StringVar(&config, "config", "", "Path to configuration file.")
 }
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
+
 	tmp, err := common.LoadConfig(config, func() interface{} {
 		return &platform.RdtConfig{}
 	})
-	cfg := tmp.(*platform.RdtConfig)
 	if err != nil {
 		klog.Fatalf("Error loading configuration for actuator: %s", err)
 	}
-	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
+	cfg := tmp.(*platform.RdtConfig)
+
+	// validate configuration.
+	err = val.IsValidGenericConf(cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort, cfg.MongoEndpoint)
+	if err != nil {
+		klog.Fatalf("Error on generic configuration for actuator: %s", err)
+	}
+	err = isValidConf(cfg.Interpreter, cfg.Analytics, cfg.Prediction, cfg.Options)
+	if err != nil {
+		klog.Fatalf("Error on configuration for actuator: %s", err)
+	}
+
+	// get K8s config.
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		klog.Fatalf("Error getting incluster k8s config: %s", err)
+		klog.Fatalf("Error getting Kubernetes config: %s", err)
 	}
 	clusterClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Fatalf("Error creating k8s cluster client: %s", err)
+		klog.Fatalf("Error creating Kubernetes cluster client: %s", err)
 	}
 
-	p := &RdtPluginHandler{
-		actuator: platform.NewRdtActuator(clusterClient, mt, *cfg),
-	}
-	stub := plugins.NewActuatorPluginStub(p.actuator.Name(), cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
-	stub.SetNextStateFunc(p.NextState)
-	stub.SetPerformFunc(p.Perform)
-	stub.SetEffectFunc(p.Effect)
-	err = stub.Start()
-	if err != nil {
-		klog.Fatalf("Error starting plugin server: %s", err)
-	}
-	err = stub.Register()
-	if err != nil {
-		klog.Fatalf("Error registering plugin: %s", err)
-	}
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	err = stub.Stop()
-	if err != nil {
-		klog.Fatalf("Error stopping plugin server: %s", err)
-	}
+	// once configuration is ready & valid start the plugin mechanism.
+	mt := controller.NewMongoTracer(cfg.MongoEndpoint)
+	actuator := platform.NewRdtActuator(clusterClient, mt, *cfg)
+	signal := pluginsHelper.StartActuatorPlugin(actuator, cfg.Endpoint, cfg.Port, cfg.PluginManagerEndpoint, cfg.PluginManagerPort)
+	<-signal
 }
 
-func init() {
-	flag.StringVar(&kubeConfig, "kubeConfig", "", "Path to a kube config file.")
-	flag.StringVar(&config, "config", "", "Path to configuration file.")
+func isValidConf(interpreter, analyticsScript, predictionScript string, options []string) error {
+	// TODO: implement!
+	if !val.IsStrConfigValid(interpreter) {
+		return fmt.Errorf("invalid path to python interpreter: %s", interpreter)
+	}
+
+	if analyticsScript != "None" {
+		_, err := os.Stat(analyticsScript)
+		if err != nil {
+			return fmt.Errorf("invalid analytics script %s", err)
+		}
+	}
+
+	if predictionScript != "None" {
+		_, err := os.Stat(predictionScript)
+		if err != nil {
+			return fmt.Errorf("invalid prediction script %s", err)
+		}
+	}
+
+	if len(options) == 0 {
+		return fmt.Errorf("not enough options defined: %v", options)
+	}
+
+	return nil
 }

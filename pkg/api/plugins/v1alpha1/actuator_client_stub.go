@@ -78,7 +78,7 @@ func toGrpcState(s *common.State) *protobufs.State {
 		},
 		CurrentPods: make(map[string]*protobufs.PodState),
 		CurrentData: make(map[string]*protobufs.DataEntry),
-		Resources:   make(map[string]string),
+		Resources:   make(map[string]int64),
 		Annotations: make(map[string]string),
 	}
 
@@ -144,7 +144,7 @@ func getNextStateRequest(state *common.State, goal *common.State, profiles map[s
 func toGrpcActions(actions []planner.Action) []*protobufs.Action {
 	var res []*protobufs.Action
 	for _, a := range actions {
-		iProp, iok := a.Properties.(map[string]int32)
+		iProp, iok := a.Properties.(map[string]int64)
 		sProp, _ := a.Properties.(map[string]string)
 		p := protobufs.ActionProperties{
 			Type: protobufs.PropertyType_INT_PROPERTY,
@@ -177,7 +177,7 @@ func getNextStateResponse(r *protobufs.NextStateResponse) ([]common.State, []flo
 			},
 			CurrentPods: make(map[string]common.PodState),
 			CurrentData: make(map[string]map[string]float64),
-			Resources:   make(map[string]string),
+			Resources:   make(map[string]int64),
 			Annotations: make(map[string]string),
 		}
 		for kp, vp := range v.CurrentPods {

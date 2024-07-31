@@ -1,0 +1,97 @@
+[
+  {
+    "name": "default/intent",
+    "timestamp": "0",
+    "current_objectives": {
+      "default/p99latency": 200,
+      "default/throughput": 100
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0,
+      "default/throughput": 0.0
+    },
+    "resources": {
+      "0_cpu_requests": 1000,
+      "0_cpu_limits": 1000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_0": {
+        "availability": 1.0,
+        "nodename": "node_0",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {},
+    "plan": null
+  },
+  {
+    "name": "default/intent",
+    "timestamp": "0",
+    "current_objectives": {
+      "default/p99latency": 200,
+      "default/throughput": 100
+    },
+    "desired_objectives": {
+      "default/p99latency": 150.0,
+      "default/throughput": 0.0
+    },
+    "resources": {
+      "0_cpu_requests": 1000,
+      "0_cpu_limits": 1000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_0": {
+        "availability": 1.0,
+        "nodename": "node_0",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {},
+    "plan": [
+      {
+        "name": "scaleCPU",
+        "properties": {
+          "value": 400
+        }
+      }
+    ]
+  },
+  {
+    "name": "default/intent",
+    "timestamp": "0",
+    "current_objectives": {
+      "default/p99latency": 200,
+      "default/throughput": 100
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0,
+      "default/throughput": 0.0
+    },
+    "resources": {
+      "0_cpu_requests": 1000,
+      "0_cpu_limits": 1000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_0": {
+        "availability": 1.0,
+        "nodename": "node_0",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {},
+    "plan": [
+      {
+        "name": "scaleCPU",
+        "properties": {
+          "value": 7500
+        }
+      }
+    ]
+  }
+]

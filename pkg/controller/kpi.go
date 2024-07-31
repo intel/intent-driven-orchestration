@@ -30,7 +30,9 @@ type httpClient interface {
 
 // init makes sure we use the "real" http client when not testing.
 func init() {
-	Client = &http.Client{}
+	Client = &http.Client{
+		Timeout: 5 * time.Second,
+	}
 }
 
 // getFloat returns a float64 from that weird Prometheus string.

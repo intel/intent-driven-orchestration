@@ -16,6 +16,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// TIMEOUT used to ensure updates get processed by the controller before asserting the results.
+const TIMEOUT = 100
+
 // dummyTracer for testing.
 type dummyTracer struct{}
 
@@ -57,16 +60,15 @@ func newTestController() *IntentController {
 	client := fake.NewSimpleClientset(nil...)
 	informer := informers.NewSharedInformerFactory(client, func() time.Duration { return 0 }())
 	dummyPlanner := dummyPlanner{}
-	controller := NewController(cfg, nil, informer.Core().V1().Pods())
+	controller := NewController(cfg, dummyTracer{}, nil, informer.Core().V1().Pods())
 	controller.SetPlanner(dummyPlanner)
-	controller.tracer = dummyTracer{}
 	return controller
 }
 
 // Tests for success.
 
 // TestUpdateProfileForSuccess tests for success.
-func TestUpdateProfileForSuccess(t *testing.T) {
+func TestUpdateProfileForSuccess(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -75,7 +77,7 @@ func TestUpdateProfileForSuccess(t *testing.T) {
 }
 
 // TestUpdatePodErrorForSuccess tests for success.
-func TestUpdatePodErrorForSuccess(t *testing.T) {
+func TestUpdatePodErrorForSuccess(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -84,7 +86,7 @@ func TestUpdatePodErrorForSuccess(t *testing.T) {
 }
 
 // TestUpdateIntentForSuccess tests for success.
-func TestUpdateIntentForSuccess(t *testing.T) {
+func TestUpdateIntentForSuccess(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -94,7 +96,7 @@ func TestUpdateIntentForSuccess(t *testing.T) {
 }
 
 // TestRunForSuccess tests for success.
-func TestRunControllerForSuccess(t *testing.T) {
+func TestRunControllerForSuccess(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -102,7 +104,7 @@ func TestRunControllerForSuccess(t *testing.T) {
 }
 
 // TestProcessIntentsForSuccess tests for success.
-func TestProcessIntentsForSuccess(t *testing.T) {
+func TestProcessIntentsForSuccess(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -123,6 +125,7 @@ func TestUpdateProfileForSanity(t *testing.T) {
 	c.Run(1, stopChannel)
 
 	c.UpdateProfile() <- common.Profile{Key: "test", ProfileType: common.Latency, Query: "foo", External: true}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.profilesLock.Lock()
 	if len(c.profiles) != 1 {
 		t.Error("Profile not added to profiles map.")
@@ -130,6 +133,7 @@ func TestUpdateProfileForSanity(t *testing.T) {
 	c.profilesLock.Unlock()
 
 	c.UpdateProfile() <- common.Profile{Key: "test", ProfileType: common.Obsolete, Query: "foo", External: true}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.profilesLock.Lock()
 	if len(c.profiles) != 0 {
 		t.Error("Profile should have been removed.")
@@ -145,6 +149,7 @@ func TestUpdatePodErrorForSanity(t *testing.T) {
 	c.Run(1, stopChannel)
 
 	c.UpdatePodError() <- common.PodError{Key: "test", Start: time.Now(), End: time.Now()}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.podErrorLock.Lock()
 	if len(c.podErrors["test"]) == 0 {
 		t.Error("These should be a POD error in the map.")
@@ -152,6 +157,7 @@ func TestUpdatePodErrorForSanity(t *testing.T) {
 	c.podErrorLock.Unlock()
 
 	c.UpdatePodError() <- common.PodError{Key: "test"}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.podErrorLock.Lock()
 	if len(c.podErrors) != 0 {
 		t.Error("Should removed the POD from the map.")
@@ -167,6 +173,7 @@ func TestUpdateIntentForSanity(t *testing.T) {
 	c.Run(1, stopChannel)
 
 	c.UpdateIntent() <- common.Intent{Key: "test", Priority: 1.0, TargetKey: "frontend", TargetKind: "Deployment"}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.intentsLock.Lock()
 	if len(c.intents) != 1 {
 		t.Error("Intent has not been added to intents map.")
@@ -174,6 +181,7 @@ func TestUpdateIntentForSanity(t *testing.T) {
 	c.intentsLock.Unlock()
 
 	c.UpdateIntent() <- common.Intent{Key: "test", Priority: -1.0}
+	time.Sleep(TIMEOUT * time.Millisecond)
 	c.intentsLock.Lock()
 	if len(c.intents) != 0 {
 		t.Error("Intent should have been removed.")
@@ -182,7 +190,7 @@ func TestUpdateIntentForSanity(t *testing.T) {
 }
 
 // TestRunControllerForSanity tests for sanity.
-func TestRunControllerForSanity(t *testing.T) {
+func TestRunControllerForSanity(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -193,7 +201,7 @@ func TestRunControllerForSanity(t *testing.T) {
 }
 
 // TestProcessIntentsForSanity tests for sanity.
-func TestProcessIntentsForSanity(t *testing.T) {
+func TestProcessIntentsForSanity(_ *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 	c := newTestController()
@@ -303,7 +311,7 @@ func TestNewControllerForFailure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			controller := NewController(tt.args.cfg, tt.args.clientSet, tt.args.informer)
+			controller := NewController(tt.args.cfg, nil, tt.args.clientSet, tt.args.informer)
 			if controller != nil {
 				if got := controller.planner; !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("Planner in NewController() = %v, want %v", got, tt.want)

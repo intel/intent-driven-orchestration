@@ -19,7 +19,7 @@ func NewCache(ttl int, tick time.Duration) (*TTLCache, chan struct{}) {
 	cache := &TTLCache{entries: make(map[string]int64)}
 	done := make(chan struct{})
 	if tick <= 0 || ttl <= 0 || tick > MaxPlanCacheTimeout || ttl > MaxPlanCacheTTL {
-		klog.Error("invalid time value.")
+		klog.Error("invalid timing values.")
 		return cache, done
 	}
 

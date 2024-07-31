@@ -19,13 +19,13 @@ const rmPodActionName = "rmPod"
 
 // RmPodConfig represents the configuration for this actuator.
 type RmPodConfig struct {
-	LookBack              int    `json:"look_back"`
 	MinPods               int    `json:"min_pods"`
-	Port                  int    `json:"port"`
+	LookBack              int    `json:"look_back"`
 	Endpoint              string `json:"endpoint"`
-	MongoEndpoint         string `json:"mongo_endpoint"`
+	Port                  int    `json:"port"`
 	PluginManagerEndpoint string `json:"plugin_manager_endpoint"`
 	PluginManagerPort     int    `json:"plugin_manager_port"`
+	MongoEndpoint         string `json:"mongo_endpoint"`
 }
 
 // RmPodActuator is an actuator that can remove particular PODs.
@@ -72,7 +72,7 @@ func (rm RmPodActuator) NextState(state *common.State, goal *common.State, profi
 				res, err := rm.tracer.GetEffect(state.Intent.Key, rm.Group(), k, rm.cfg.LookBack, func() interface{} {
 					return &ScaleOutEffect{}
 				})
-				if err != nil || len(res.(*ScaleOutEffect).ReplicaRange) < 1 {
+				if err != nil {
 					klog.Warningf("No valid effect data found in knowledge base: %v.", res)
 					return states, utilities, actions
 				}

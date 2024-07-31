@@ -33,11 +33,11 @@ type RdtConfig struct {
 	Analytics             string   `json:"analytics_script"`
 	Prediction            string   `json:"prediction_script"`
 	Options               []string `json:"options"`
-	Port                  int      `json:"port"`
 	Endpoint              string   `json:"endpoint"`
-	MongoEndpoint         string   `json:"mongo_endpoint"`
+	Port                  int      `json:"port"`
 	PluginManagerEndpoint string   `json:"plugin_manager_endpoint"`
 	PluginManagerPort     int      `json:"plugin_manager_port"`
+	MongoEndpoint         string   `json:"mongo_endpoint"`
 }
 
 // RdtActuator represents the actual RDT actuator.
@@ -74,9 +74,13 @@ type responseBody struct {
 // doQuery calls the prediction function.
 func doQuery(body requestBody) float64 {
 	tmp, _ := json.Marshal(body)
-	resp, err := http.Post("http://localhost:8000", "application/json", bytes.NewBuffer(tmp))
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Post("http://localhost:8000", "application/json", bytes.NewBuffer(tmp))
 	if err != nil {
 		klog.Errorf("Could not reach prediction endpoint: %s.", err)
+		return -1.0
 	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
@@ -87,6 +91,7 @@ func doQuery(body requestBody) float64 {
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		klog.Errorf("Error to read the body: %s", err)
+		return -1.0
 	}
 	var res responseBody
 	err = json.Unmarshal(respBody, &res)

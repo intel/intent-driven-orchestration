@@ -1,0 +1,905 @@
+[{
+  "_id": {
+    "$oid": "65b8e70d1a454775358ae4a1"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:09:49.704Z"
+  },
+  "current_objectives": {
+    "default/p99latency": -1.0,
+    "default/throughput": -1.0
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 500,
+    "1_cpu_limits": 500
+  },
+  "annotations": {
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy"
+  },
+  "pods": {
+    "function-deployment-6fc9444fd4-4lmrz": {
+      "availability": 1.0,
+      "nodename": "",
+      "state": "Pending",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {}
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e7311a454775358ae4a2"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:10:25.527Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 0.99,
+    "default/throughput": 0.3
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 500,
+    "1_cpu_limits": 500
+  },
+  "annotations": {
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-6fc9444fd4-4lmrz": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet1": 13.062482793132801
+    }
+  },
+  "plan": [
+    {
+      "name": "scaleCPU",
+      "properties": {
+        "value": 1200
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8e78b1a454775358ae4a3"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:11:55.556Z"
+  },
+  "current_objectives": {
+    "default/throughput": 12.3,
+    "default/p99latency": 91.214
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500
+  },
+  "annotations": {
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 12.715407145003718
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e7b81a454775358ae4a4"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:12:40.486Z"
+  },
+  "current_objectives": {
+    "default/throughput": 12.3,
+    "default/p99latency": 84.625
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 12.503563267721876
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e7e51a454775358ae4a5"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:13:25.561Z"
+  },
+  "current_objectives": {
+    "default/throughput": 24.3,
+    "default/p99latency": 139.25
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 27.074713069055015
+    }
+  },
+  "plan": [
+    {
+      "name": "scaleOut",
+      "properties": {
+        "factor": 3
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8e8401a454775358ae4a6"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:14:56.295Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 94.386,
+    "default/throughput": 24.7
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy"
+  },
+  "pods": {
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 13.742450629440548,
+      "comet1": 14.330834547076375
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e86d1a454775358ae4a7"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:15:41.037Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 95.241,
+    "default/throughput": 25.9
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet1": 13.067782364694686,
+      "comet0": 14.785801654440816
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e89a1a454775358ae4a8"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:16:26.551Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 96.258,
+    "default/throughput": 25.0
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 12.679994287253427,
+      "comet1": 14.838800568485551
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e8c71a454775358ae4a9"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:17:11.058Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 95.062,
+    "default/throughput": 23.8
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 12.292454262744858,
+      "comet1": 15.220247878961262
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e8d11a454775358ae4aa"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:17:21.981Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 99.017,
+    "default/throughput": 26.1
+  },
+  "desired_objectives": {
+    "default/throughput": 0.0,
+    "default/p99latency": 100.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 15.171684274897899,
+      "comet1": 14.505257472795826
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8e8f31a454775358ae4ab"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:17:55.579Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 49.758,
+    "default/throughput": 12.5
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5876876568-mb4zc": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 6.9707200098048405,
+      "comet1": 6.38656047921196
+    }
+  },
+  "plan": [
+    {
+      "name": "rmPod",
+      "properties": {
+        "name": "function-deployment-5876876568-mb4zc"
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8e94d1a454775358ae4ac"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:19:25.655Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 68.25,
+    "default/throughput": 12.7
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200
+  },
+  "annotations": {
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy"
+  },
+  "pods": {
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-5pqb7": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 3.8579247401675874,
+      "comet1": 10.100545776820109
+    }
+  },
+  "plan": [
+    {
+      "name": "rmPod",
+      "properties": {
+        "name": "function-deployment-5876876568-5pqb7"
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8e9a71a454775358ae4ad"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:20:55.519Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 80.667,
+    "default/throughput": 11.7
+  },
+  "desired_objectives": {
+    "default/p99latency": 100.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200
+  },
+  "annotations": {
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled"
+  },
+  "pods": {
+    "function-deployment-5876876568-x96sc": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    },
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet1": 12.827335315982339
+    }
+  },
+  "plan": [
+    {
+      "name": "rmPod",
+      "properties": {
+        "name": "function-deployment-5876876568-x96sc"
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8ea011a454775358ae4ae"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:22:25.513Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 69.5,
+    "default/throughput": 12.2
+  },
+  "desired_objectives": {
+    "default/throughput": 0.0,
+    "default/p99latency": 100.0
+  },
+  "resources": {
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500
+  },
+  "annotations": {
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet1": 12.547019655726091
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8ea1b1a454775358ae4af"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:22:51.164Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 89.75,
+    "default/throughput": 12.4
+  },
+  "desired_objectives": {
+    "default/p99latency": 150.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "1_cpu_requests": 1200,
+    "1_cpu_limits": 1200,
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500
+  },
+  "annotations": {
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled"
+  },
+  "pods": {
+    "function-deployment-5876876568-zcc7m": {
+      "availability": 1.0,
+      "nodename": "comet1",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet1": 12.720645567046084
+    }
+  },
+  "plan": [
+    {
+      "name": "scaleCPU",
+      "properties": {
+        "value": 700
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65b8ea5b1a454775358ae4b0"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:23:55.476Z"
+  },
+  "current_objectives": {
+    "default/throughput": 12.4,
+    "default/p99latency": 98.949
+  },
+  "desired_objectives": {
+    "default/p99latency": 150.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "1_cpu_requests": 700,
+    "1_cpu_limits": 700,
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-69668858c6-gpfvs": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 12.875166204743469
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65b8ea881a454775358ae4b1"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-01-30T12:24:40.469Z"
+  },
+  "current_objectives": {
+    "default/p99latency": 98.94,
+    "default/throughput": 12.3
+  },
+  "desired_objectives": {
+    "default/p99latency": 150.0,
+    "default/throughput": 0.0
+  },
+  "resources": {
+    "0_cpu_requests": 500,
+    "0_cpu_limits": 500,
+    "1_cpu_requests": 700,
+    "1_cpu_limits": 700
+  },
+  "annotations": {
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container linkerd-proxy; cpu limit for container linkerd-proxy",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-69668858c6-gpfvs": {
+      "availability": 1.0,
+      "nodename": "comet0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "comet0": 13.32175415893714
+    }
+  },
+  "plan": null
+}]

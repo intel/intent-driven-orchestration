@@ -12,7 +12,7 @@ func init() {
 // Tests for success.
 
 // TestGetHostTelemetryForSuccess tests for success.
-func TestGetHostTelemetryForSuccess(t *testing.T) {
+func TestGetHostTelemetryForSuccess(_ *testing.T) {
 	responseBody := "{\"data\": {\"result\": [{\"metric\": {\"exported_instance\": \"node0\"}, \"value\": [1645019125.000, 25.0]}]}}"
 	MockResponse(responseBody, 200)
 	query := "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"

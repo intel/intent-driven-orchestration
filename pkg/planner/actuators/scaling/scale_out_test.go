@@ -28,8 +28,8 @@ func (d dummyTracer) GetEffect(_ string, _ string, profileName string, _ int, co
 	}
 	tmp := constructor().(*ScaleOutEffect)
 	tmp.ThroughputScale = [2]float64{0.01, 0.0}
-	tmp.ReplicaRange = [2]int{1, 7}
-	tmp.Popt = [5]float64{0.01, 1, 1, 4, 1}
+	tmp.ReplicaRange = [2]int{1, 5}
+	tmp.Popt = [4]float64{2., 1., 1., 0.2}
 	return tmp, nil
 }
 
@@ -179,7 +179,7 @@ func TestScalePerformForFailure(t *testing.T) {
 		CurrentPods: map[string]common.PodState{"pod_0": {}},
 	}
 	plan := []planner.Action{
-		{Name: scaleOutActionName, Properties: map[string]int32{"factor": 2}},
+		{Name: scaleOutActionName, Properties: map[string]int64{"factor": 2}},
 		{Name: rmPodActionName},
 	}
 	actuator.Perform(&s0, plan)
@@ -253,11 +253,11 @@ func TestScaleNextStateForSanity(t *testing.T) {
 		t.Errorf("Resultsets are empty: %v, %v, %v.", states, utilities, actions)
 	}
 	// check if results match for scale-out
-	if len(states[0].CurrentPods) != 3 || actions[0].Name != actuator.Name() || actions[0].Properties.(map[string]int32)["factor"] != 2 {
+	if len(states[0].CurrentPods) != 3 || actions[0].Name != actuator.Name() || actions[0].Properties.(map[string]int64)["factor"] != 2 {
 		t.Errorf("Expected a scale out by factor of 2 - got: %v.", actions[0])
 	}
 	if utilities[0] > 0.95 {
-		t.Errorf("Expected utiltiy to be < 1.0 - got: %v.", utilities)
+		t.Errorf("Expected utility to be < 1.0 - got: %v.", utilities)
 	}
 
 	// empty results if no solution can be found.
@@ -294,7 +294,7 @@ func TestScaleNextStateForSanity(t *testing.T) {
 	if len(states) != 1 || len(utilities) != 1 || len(actions) != 1 {
 		t.Errorf("Resultsets should not be empty: %v, %v, %v.", states, utilities, actions)
 	}
-	if actions[0].Properties.(map[string]int32)["proactive"] != 1 || utilities[0] != 0.1 {
+	if actions[0].Properties.(map[string]int64)["proactive"] != 1 || utilities[0] != 0.1 {
 		t.Errorf("Action should be marked as being proactive, utiltiy == 0.01 -got %v, %v.", states[0], utilities[0])
 	}
 }
@@ -330,7 +330,7 @@ func TestScalePerformForSanity(t *testing.T) {
 		CurrentPods: map[string]common.PodState{"pod_0": {}},
 	}
 	plan := []planner.Action{
-		{Name: scaleOutActionName, Properties: map[string]int32{"factor": 2}},
+		{Name: scaleOutActionName, Properties: map[string]int64{"factor": 2}},
 		{Name: rmPodActionName},
 	}
 	actuator.Perform(&s0, plan)
@@ -373,5 +373,9 @@ func TestScaleEffectForSanity(t *testing.T) {
 	// adding the throughput based objective profile will help :-)
 	state.Intent.Objectives["default/rps"] = 100
 	profiles["default/rps"] = common.Profile{ProfileType: common.ProfileTypeFromText("throughput")}
+	actuator.Effect(&state, profiles)
+
+	// check with None.
+	actuator.cfg.Script = "None"
 	actuator.Effect(&state, profiles)
 }

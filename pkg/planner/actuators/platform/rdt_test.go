@@ -63,7 +63,7 @@ func (f *rdtActuatorFixture) newRdtTestActuator() *RdtActuator {
 // Tests for success.
 
 // TestRdtNextStateForSuccess tests for success.
-func TestRdtNextStateForSuccess(t *testing.T) {
+func TestRdtNextStateForSuccess(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
 
@@ -95,7 +95,7 @@ func TestRdtNextStateForSuccess(t *testing.T) {
 }
 
 // TestRdtPerformForSuccess tests for success.
-func TestRdtPerformForSuccess(t *testing.T) {
+func TestRdtPerformForSuccess(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	f.objects = []runtime.Object{
 		&coreV1.Pod{
@@ -115,7 +115,7 @@ func TestRdtPerformForSuccess(t *testing.T) {
 }
 
 // TestRdtEffectForSuccess tests for success.
-func TestRdtEffectForSuccess(t *testing.T) {
+func TestRdtEffectForSuccess(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
 	state := common.State{
@@ -162,7 +162,7 @@ func TestRdtPerformForFailure(t *testing.T) {
 }
 
 // TestRdtEffectForFailure tests for failure.
-func TestRdtEffectForFailure(t *testing.T) {
+func TestRdtEffectForFailure(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	// not much to do here, as this will "just" trigger a python script.
 	state := common.State{
@@ -413,7 +413,7 @@ func TestRdtPerformForSanity(t *testing.T) {
 }
 
 // TestRdtEffectForSanity tests for sanity.
-func TestRdtEffectForSanity(t *testing.T) {
+func TestRdtEffectForSanity(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	// not much to do here, as this will "just" trigger a python script.
 	state := common.State{

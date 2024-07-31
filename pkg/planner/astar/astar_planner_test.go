@@ -236,9 +236,9 @@ func (res resourceAction) NextState(state *common.State, _ *common.State, _ map[
 	// Set the right CPU resource allocations if not already the case...
 	current, ok := state.Resources["cpu"]
 	if ok {
-		if current != "2" {
+		if current != 2 {
 			newState := state.DeepCopy()
-			newState.Resources["cpu"] = "2"
+			newState.Resources["cpu"] = 2
 
 			followUpStates = append(followUpStates, newState)
 			utilities = append(utilities, 0.0)
@@ -418,14 +418,14 @@ func getPlannerTestCases(enableOpportunistic bool) []testCaseData {
 		{
 			name:       "local actuators",
 			fixture:    f1,
-			plannerCrt: func(f *aStarPlannerFixture) *APlanner { return f1.newTestPlanner(enableOpportunistic) },
-			stubsCrt:   func(f *aStarPlannerFixture) []*plugins.ActuatorPluginStub { return []*plugins.ActuatorPluginStub{} },
+			plannerCrt: func(_ *aStarPlannerFixture) *APlanner { return f1.newTestPlanner(enableOpportunistic) },
+			stubsCrt:   func(_ *aStarPlannerFixture) []*plugins.ActuatorPluginStub { return []*plugins.ActuatorPluginStub{} },
 		},
 		{
 			name:       "grpc actuators",
 			fixture:    f2,
-			plannerCrt: func(f *aStarPlannerFixture) *APlanner { return f2.newTestPlannerGrpc(enableOpportunistic) },
-			stubsCrt:   func(f *aStarPlannerFixture) []*plugins.ActuatorPluginStub { return newTestActuatorsGrpc(f2) },
+			plannerCrt: func(_ *aStarPlannerFixture) *APlanner { return f2.newTestPlannerGrpc(enableOpportunistic) },
+			stubsCrt:   func(_ *aStarPlannerFixture) []*plugins.ActuatorPluginStub { return newTestActuatorsGrpc(f2) },
 		},
 	}
 }
@@ -433,14 +433,14 @@ func getPlannerTestCases(enableOpportunistic bool) []testCaseData {
 // Tests for success.
 
 // TestGetNodeForStateForSuccess tests for sanity.
-func TestGetNodeForStateForSuccess(t *testing.T) {
+func TestGetNodeForStateForSuccess(_ *testing.T) {
 	sg := newStateGraph()
 	s0 := common.State{}
 	getNodeForState(*sg, s0)
 }
 
 // TestCreatePlanForSuccess tests for success.
-func TestCreatePlanForSuccess(t *testing.T) {
+func TestCreatePlanForSuccess(_ *testing.T) {
 	f := newAStarPlannerFixture()
 	start := common.State{
 		Intent: common.Intent{
@@ -475,7 +475,7 @@ func TestCreatePlanForSuccess(t *testing.T) {
 }
 
 // TestExecutePlanForSuccess tests for success.
-func TestExecutePlanForSuccess(t *testing.T) {
+func TestExecutePlanForSuccess(_ *testing.T) {
 	f := newAStarPlannerFixture()
 	state := common.State{Intent: common.Intent{
 		Key:        "foo",
@@ -491,7 +491,7 @@ func TestExecutePlanForSuccess(t *testing.T) {
 }
 
 // TestTriggerEffectForSuccess tests for success.
-func TestTriggerEffectForSuccess(t *testing.T) {
+func TestTriggerEffectForSuccess(_ *testing.T) {
 	f := newAStarPlannerFixture()
 	state := common.State{Intent: common.Intent{
 		Key:        "foo",
@@ -643,7 +643,7 @@ func TestShortCutForSanity(t *testing.T) {
 				},
 				CurrentPods: map[string]common.PodState{"pod_0": {Availability: 1.0}},
 				CurrentData: map[string]map[string]float64{"cpu_value": {"host0": 20.0}},
-				Resources:   map[string]string{"cpu": "4"},
+				Resources:   map[string]int64{"cpu": 4},
 			}
 			goal := common.State{
 				Intent: common.Intent{
@@ -761,12 +761,12 @@ func TestFaultyActuatorOverGrpcForSanity(t *testing.T) {
 	cfg.Planner.AStar.PluginManagerEndpoint = "localhost"
 	cfg.Planner.AStar.PluginManagerPort = 33337
 	aPlanner := NewAPlanner(actuatorList, cfg)
+	defer aPlanner.Stop()
 
 	faultyStub, err := createPlugin("faulty", 3338, faulty, 33337)
 	if err != nil {
 		klog.Errorf("Cannot create faulty plugin over grpc")
 	}
-	defer aPlanner.Stop()
 
 	start := common.State{}
 	goal := common.State{}
@@ -787,7 +787,6 @@ func TestFaultyActuatorOverGrpcForSanity(t *testing.T) {
 			"and goal, that means Nextstate() should be called 4 times as we only take 2 candidates from each call. "+
 			"Was: %v", len(f.triggeredUpdates))
 	}
-
 }
 
 // BenchmarkCreatePlan benchmarks the planner.

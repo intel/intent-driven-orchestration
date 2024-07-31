@@ -67,9 +67,9 @@ Step 3) deploy the actuators of interest using:
 
 These steps should be followed by setting up your default profiles (if needed).
 
-We recommend the usage of a service mesh like [Linkerd](https://linkerd.io/) or [Istio](https://istio.io/) to ensure
-encryption and monitoring capabilities for the subcomponents of the planning framework themselves. After creating the
-namespace, enable auto-injection; For Linkerd do:
+We recommend the usage of a service mesh like [Linkerd](https://linkerd.io/) or [Istio](https://istio.io/) to ensure 
+robust authentication, encryption and monitoring capabilities for the subcomponents of the planning framework 
+themselves. After creating the namespace, <enable auto-injection; For Linkerd do:
 
     $ k annotate ns ido linkerd.io/inject=enabled
 

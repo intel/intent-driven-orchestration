@@ -4,8 +4,8 @@ MAIN_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/../" &> /dev/null && pwd 
 
 set -e
 function protoc::ensure_installed {
-    if [[ ! -x "$(command -v protoc)" || "$(protoc --version)" != "libprotoc 3."* ]]; then
-        echo "Generating api requires protoc 3 compiler. Please follow the instructions at"
+    if [[ ! -x "$(command -v protoc)" || "$(protoc --version)" != "libprotoc 27."* ]]; then
+        echo "Generating api requires an up-to-date protoc compiler. Please follow the instructions at"
         echo "  https://grpc.io/docs/protoc-installation/"
         exit 1
     fi

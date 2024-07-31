@@ -125,7 +125,7 @@ def store_data(data, args):
            'group': 'rdt',
            'data': data,
            'static': False,
-           'timestamp': datetime.datetime.now()}
+           'timestamp': datetime.datetime.utcnow()}
     try:
         coll.insert_one(doc)
     except errors.ExecutionTimeout as err:

@@ -52,14 +52,14 @@ func testHeuristic(one, _ Node, _ map[string]common.Profile) float64 {
 // Tests for success.
 
 // TestSolveForSuccess tests for success.
-func TestSolveForSuccess(t *testing.T) {
+func TestSolveForSuccess(_ *testing.T) {
 	sg, start, goal := newTestGraph()
 	profiles := map[string]common.Profile{}
 	solve(sg, start, goal, testHeuristic, true, profiles)
 }
 
 // TestResolvePathForSuccess tests for success.
-func TestResolvePathForSuccess(t *testing.T) {
+func TestResolvePathForSuccess(_ *testing.T) {
 	node0 := Node{value: "a"}
 	node1 := Node{value: "b"}
 	node2 := Node{value: "c"}

@@ -108,7 +108,7 @@ func k8sShim(podSet runtime.Object, pods []*coreV1.Pod) (kubernetes.Interface, v
 // Tests for success.
 
 // TestGetPodsForSuccess tests for success.
-func TestGetPodsForSuccess(t *testing.T) {
+func TestGetPodsForSuccess(_ *testing.T) {
 	deployment, pods := createDummies("Deployment", map[string]string{"foo": "bar"}, 1)
 	podErrors := map[string][]common.PodError{}
 	client, informer := k8sShim(deployment, pods)
@@ -116,7 +116,7 @@ func TestGetPodsForSuccess(t *testing.T) {
 }
 
 // TestGetDesiredStateForSuccess test for success.
-func TestGetDesiredStateForSuccess(t *testing.T) {
+func TestGetDesiredStateForSuccess(_ *testing.T) {
 	objective := common.Intent{
 		Objectives: map[string]float64{"P99compliance": 100.0},
 	}
@@ -156,7 +156,7 @@ func TestGetPodsForSanity(t *testing.T) {
 	if _, ok := annotations["sample-annotation"]; !ok {
 		t.Errorf("Annotation should have been set - was: %v", annotations)
 	}
-	if len(resources) != 4 || resources["0_foo_requests"] != "2000" || resources["1_bar_limits"] != "1048576000000" {
+	if len(resources) != 4 || resources["0_foo_requests"] != 2000 || resources["1_bar_limits"] != 1048576000000 {
 		t.Errorf("Expected 4 resoure entries, one with foo another with bar resource requests & limits - was: %+v", resources)
 	}
 	if hosts[0] != "node0" {

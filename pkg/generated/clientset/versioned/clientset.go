@@ -20,9 +20,6 @@ import (
 	"net/http"
 
 	idov1alpha1 "github.com/intel/intent-driven-orchestration/pkg/generated/clientset/versioned/typed/intents/v1alpha1"
-
-	"k8s.io/klog/v2"
-
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -33,8 +30,7 @@ type Interface interface {
 	IdoV1alpha1() idov1alpha1.IdoV1alpha1Interface
 }
 
-// Clientset contains the clients for groups. Each group has exactly one
-// version included in a Clientset.
+// Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	idoV1alpha1 *idov1alpha1.IdoV1alpha1Client
@@ -106,7 +102,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs, err := NewForConfig(c)
 	if err != nil {
-		klog.Fatal(err)
+		panic(err)
 	}
 	return cs
 }

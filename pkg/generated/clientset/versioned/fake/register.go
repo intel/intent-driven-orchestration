@@ -17,7 +17,6 @@ package fake
 
 import (
 	idov1alpha1 "github.com/intel/intent-driven-orchestration/pkg/api/intents/v1alpha1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

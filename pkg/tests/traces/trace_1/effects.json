@@ -1,0 +1,198 @@
+[{
+  "_id": {
+    "$oid": "65b7a9d5d8c0a5577562fb5e"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p50latency",
+  "group": "scaling",
+  "data": {
+    "throughputRange": [
+      11.7,
+      37.4
+    ],
+    "throughputScale": [
+      0.1556420233463035,
+      -0.8210116731517509
+    ],
+    "replicaRange": [
+      1,
+      4
+    ],
+    "popt": [
+      1.7953060759736734,
+      0.7107664907145342,
+      0.08418771034672608,
+      0.16712977859691586
+    ],
+    "trainingFeatures": [
+      "default/throughput",
+      "replicas"
+    ],
+    "targetFeature": "default/p50latency"
+  },
+  "timestamp": {
+    "$date": "2024-01-29T14:36:21.811Z"
+  },
+  "static": true
+},{
+  "_id": {
+    "$oid": "65b7a9d22130241fce26d847"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p95latency",
+  "group": "scaling",
+  "data": {
+    "throughputRange": [
+      6.4,
+      37.4
+    ],
+    "throughputScale": [
+      0.12903225806451613,
+      0.17419354838709677
+    ],
+    "replicaRange": [
+      1,
+      4
+    ],
+    "popt": [
+      1.876236766451076,
+      0.3479978871129307,
+      0.03630452074498126,
+      0.05612263537403011
+    ],
+    "trainingFeatures": [
+      "default/throughput",
+      "replicas"
+    ],
+    "targetFeature": "default/p95latency"
+  },
+  "timestamp": {
+    "$date": "2024-01-29T14:36:18.291Z"
+  },
+  "static": true
+},{
+  "_id": {
+    "$oid": "65b7a9d8f5a8afa4802bee95"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p99latency",
+  "group": "scaling",
+  "data": {
+    "throughputRange": [
+      6.4,
+      37.2
+    ],
+    "throughputScale": [
+      0.12987012987012986,
+      0.1688311688311689
+    ],
+    "replicaRange": [
+      1,
+      4
+    ],
+    "popt": [
+      1.7340978705359251,
+      0.32188728156949387,
+      0.02992459259216999,
+      0.042336575288062825
+    ],
+    "trainingFeatures": [
+      "default/throughput",
+      "replicas"
+    ],
+    "targetFeature": "default/p99latency"
+  },
+  "timestamp": {
+    "$date": "2024-01-29T14:36:24.871Z"
+  },
+  "static": true
+},{
+  "_id": {
+    "$oid": "65b7a9d6c34376a54780332c"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p50latency",
+  "group": "vertical_scaling",
+  "data": {
+    "latencyRange": [
+      35.043,
+      149.407
+    ],
+    "cpuRange": [
+      0.25,
+      2.5
+    ],
+    "popt": [
+      272.3754065441032,
+      3.3408376505041804,
+      32.917177116938596
+    ],
+    "trainingFeatures": [
+      "cpus"
+    ],
+    "targetFeature": "default/p50latency"
+  },
+  "timestamp": {
+    "$date": "2024-01-29T14:36:22.920Z"
+  },
+  "static": true
+},{
+  "_id": {
+    "$oid": "65b7a9d4b9bd0848eca85768"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p95latency",
+  "group": "vertical_scaling",
+  "data": {
+    "latencyRange": [
+      39.815,
+      245.714
+    ],
+    "cpuRange": [
+      0.25,
+      2.5
+    ],
+    "popt": [
+      269.59131728063625,
+      2.225499837045876,
+      54.44974387771397
+    ],
+    "trainingFeatures": [
+      "cpus"
+    ],
+    "targetFeature": "default/p95latency"},
+  "timestamp": {
+    "$date": "2024-01-29T14:36:20.311Z"
+  },
+  "static": true
+},{
+  "_id": {
+    "$oid": "65b7a9d14895657c322f7e6c"
+  },
+  "name": "default/my-intent",
+  "profileName": "default/p99latency",
+  "group": "vertical_scaling",
+  "data": {
+    "latencyRange": [
+      46.925,
+      289.143
+    ],
+    "cpuRange": [
+      0.25,
+      2.5
+    ],
+    "popt": [
+      248.69930654974348,
+      1.8325502392260382,
+      66.53386004054035
+    ],
+    "trainingFeatures": [
+      "cpus"
+    ],
+    "targetFeature": "default/p99latency"
+  },
+  "timestamp": {
+    "$date": "2024-01-29T14:36:17.619Z"
+  },
+  "static": true
+}]

@@ -4,117 +4,125 @@ import (
 	"testing"
 )
 
-type specCPUConfig struct {
-	CPUMax                     int64
-	CPURounding                int64
-	CPUSafeGuardFactor         float64
-	MaxProActiveCPU            int64
-	ProActiveLatencyPercentage float64
-}
+// pathToAnalyticsScript defines the path to an existing script for this actuator.
+const pathToAnalyticsScript = "../../../pkg/planner/actuators/scaling/analytics/cpu_rightsizing.py"
 
-func setCPUConfigValues(CPUMax, CPURounding, MaxProActiveCPU int64,
-	CPUSafeGuardFactor, ProActiveLatencyPercentage float64) specCPUConfig {
-	return specCPUConfig{
-		CPUMax:                     CPUMax,
-		CPURounding:                CPURounding,
-		CPUSafeGuardFactor:         CPUSafeGuardFactor,
-		MaxProActiveCPU:            MaxProActiveCPU,
-		ProActiveLatencyPercentage: ProActiveLatencyPercentage,
+func TestIsValidConf(t *testing.T) {
+	type args struct {
+		interpreter                string
+		script                     string
+		cpuMax                     int64
+		cpuRounding                int64
+		maxProActiveCPU            int64
+		cpuSafeGuardFactor         float64
+		proActiveLatencyPercentage float64
+		lookBack                   int
 	}
-}
-
-func Test_isValidConf(t *testing.T) {
 	tests := []struct {
 		name    string
-		args    specCPUConfig
+		args    args
 		wantErr bool
 	}{
 		{
-			name:    "tc",
-			args:    setCPUConfigValues(4000, 100, 0, 0.95, 0.1),
+			name:    "tc-0",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 0.1, 10000},
 			wantErr: false,
 		},
 		{
 			name:    "tc-1",
-			args:    setCPUConfigValues(-10, 100, 0, 0.95, 0.1),
-			wantErr: true, // negative cpu
+			args:    args{"", pathToAnalyticsScript, 4000, 100, 0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
 			name:    "tc-2",
-			args:    setCPUConfigValues(0, 100, 0, 0.95, 0.1),
-			wantErr: true, // zero cpu
+			args:    args{"python3", "", 4000, 100, 0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			// over uplimit
 			name:    "tc-3",
-			args:    setCPUConfigValues(999999999999999999, 100, 0, 0.95, 0.1),
-			wantErr: true, // over limit cpu
+			args:    args{"python3", pathToAnalyticsScript, -1, 100, 0, 0.95, 0.1, 10000},
+			wantErr: true, // negative cpu
 		},
 		{
 			name:    "tc-4",
-			args:    setCPUConfigValues(4000, -10, 0, 0.95, 0.1),
-			wantErr: true, // negative round base
+			args:    args{"python3", pathToAnalyticsScript, 0, 100, 0, 0.95, 0.1, 10000},
+			wantErr: true, // zero cpu
 		},
 		{
 			name:    "tc-5",
-			args:    setCPUConfigValues(4000, 0, 0, 0.95, 0.1),
-			wantErr: true, // zero round base
+			args:    args{"python3", pathToAnalyticsScript, 999999999, 100, 0, 0.95, 0.1, 10000},
+			wantErr: true, // over limit cpu
 		},
 		{
 			name:    "tc-6",
-			args:    setCPUConfigValues(4000, 1001, 0, 0.95, 0.1),
-			wantErr: true, // over limit round base
+			args:    args{"python3", pathToAnalyticsScript, 4000, -1, 0, 0.95, 0.1, 10000},
+			wantErr: true, // negative round base
 		},
 		{
 			name:    "tc-7",
-			args:    setCPUConfigValues(4000, 101, 0, 0.95, 0.1),
-			wantErr: true, // not round base 10
+			args:    args{"python3", pathToAnalyticsScript, 4000, 0, 0, 0.95, 0.1, 10000},
+			wantErr: true, // zero round base
 		},
 		{
 			name:    "tc-8",
-			args:    setCPUConfigValues(4000, 100, -10, 0.95, 0.1),
-			wantErr: true, // negative cpu for proactive
+			args:    args{"python3", pathToAnalyticsScript, 4000, 1001, 0, 0.95, 0.1, 10000},
+			wantErr: true, // over limit round base
 		},
 		{
 			name:    "tc-9",
-			args:    setCPUConfigValues(4000, 100, 100000, 0.95, 0.1),
-			wantErr: true, // over limit cpu for proactive
+			args:    args{"python3", pathToAnalyticsScript, 4000, 101, 0, 0.95, 0.1, 10000},
+			wantErr: true, // not round base 10
 		},
 		{
 			name:    "tc-10",
-			args:    setCPUConfigValues(4000, 100, 1700, -0.9, 0.1),
-			wantErr: true, // negative value for safeguard
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, -1, 0.95, 0.1, 10000},
+			wantErr: true, // negative cpu for proactive
 		},
 		{
 			name:    "tc-11",
-			args:    setCPUConfigValues(4000, 100, 1700, 0, 0.1),
-			wantErr: true, // zero value for safeguard
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 10000, 0.95, 0.1, 10000},
+			wantErr: true, // over limit cpu for proactive
 		},
 		{
 			name:    "tc-12",
-			args:    setCPUConfigValues(4000, 100, 1700, 2.12, 0.1),
-			wantErr: true, // over limit for safeguard
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, -1.0, 0.1, 10000},
+			wantErr: true, // negative value for safeguard
 		},
 		{
 			name:    "tc-13",
-			args:    setCPUConfigValues(4000, 100, 1700, 0.12, -0.21),
-			wantErr: true, // negative proactive latency fraction
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.0, 0.1, 10000},
+			wantErr: true, // zero value for safeguard
 		},
 		{
 			name:    "tc-14",
-			args:    setCPUConfigValues(4000, 100, 1700, 0.12, 0),
-			wantErr: false, // aceptable proactive latency fraction
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 2.0, 0.1, 10000},
+			wantErr: true, // over limit for safeguard
 		},
 		{
 			name:    "tc-15",
-			args:    setCPUConfigValues(4000, 100, 1700, 0.12, 2),
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, -1.0, 10000},
+			wantErr: true, // negative proactive latency fraction
+		},
+		{
+			name:    "tc-16",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.01, 10000},
 			wantErr: true, // over limit proactive latency fraction
+		},
+		{
+			name:    "tc-17",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.0, -1},
+			wantErr: true, // negative lookback.
+		},
+		{
+			name:    "tc-18",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.0, 999999},
+			wantErr: true, // over limit lookback.
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := isValidConf(tt.args.CPUMax, tt.args.CPURounding, tt.args.MaxProActiveCPU,
-				tt.args.CPUSafeGuardFactor, tt.args.ProActiveLatencyPercentage); (err != nil) != tt.wantErr {
+			if err := isValidConf(tt.args.interpreter, tt.args.script, tt.args.cpuMax, tt.args.cpuRounding, tt.args.maxProActiveCPU,
+				tt.args.cpuSafeGuardFactor, tt.args.proActiveLatencyPercentage, tt.args.lookBack); (err != nil) != tt.wantErr {
 				t.Errorf("isValidConf() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

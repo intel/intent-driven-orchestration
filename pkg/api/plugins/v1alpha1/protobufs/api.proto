@@ -14,7 +14,6 @@ message Empty {
 // Registration may fail when ido plugin version is not supported by
 // ido controller or the registered plugin name is already taken by another
 // active ido plugin. IDO plugin is expected to terminate upon registration failure
-
 service Registration {
   rpc Register(RegisterRequest) returns (RegistrationStatusResponse) {}
 }
@@ -95,8 +94,8 @@ message State {
   Intent intent = 1;
   map<string, PodState> current_pods = 2;
   map<string, DataEntry> current_data = 3;
-	map<string, string> resources = 4;
-	map<string, string> annotations = 5;
+  map<string, int64> resources = 4;
+  map<string, string> annotations = 5;
 }
 
 // PropertyType type of property: integer or string
@@ -108,7 +107,7 @@ enum PropertyType{
 // ActionProperties action properties
 message ActionProperties{
   PropertyType type = 1;
-  map<string, int32> intProperties = 2;
+  map<string, int64> intProperties = 2;
   map<string, string> strProperties = 3;
 }
 
