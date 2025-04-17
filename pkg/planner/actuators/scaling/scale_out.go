@@ -189,7 +189,7 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				return err
 			}
 			// conversion to int32 is ok - as we have a MaxPods defined
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor)) //nolint:gosec // explanation: casting len to int64 for API compatibility
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().Deployments(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr
@@ -207,7 +207,7 @@ func (scale ScaleOutActuator) Perform(state *common.State, plan []planner.Action
 				return err
 			}
 			// conversion to int32 is ok - as we have a MaxPods defined
-			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor))
+			res.Spec.Replicas = getInt32Pointer(*res.Spec.Replicas + int32(factor)) //nolint:gosec // explanation: casting len to int64 for API compatibility
 			if *res.Spec.Replicas > 0 {
 				_, updateErr := scale.apps.AppsV1().ReplicaSets(namespace).Update(context.TODO(), res, metaV1.UpdateOptions{})
 				return updateErr

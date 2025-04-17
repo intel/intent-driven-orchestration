@@ -116,7 +116,7 @@ func toGrpcStates(states []common.State) []*protobufs.State {
 func toGrpcProfile(v *common.Profile) *protobufs.Profile {
 	return &protobufs.Profile{
 		Key:         v.Key,
-		ProfileType: protobufs.ProfileType(v.ProfileType),
+		ProfileType: protobufs.ProfileType(v.ProfileType), //nolint:gosec // explanation: only limited # of profile types exist.
 	}
 }
 

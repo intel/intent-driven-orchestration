@@ -72,12 +72,12 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 	// event handlers.
 	_, _ = informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// No need to AddFunc, as POD is first pending...through an update is initially gets ready.
-		UpdateFunc: func(old, new interface{}) {
-			if old.(*coreV1.Pod).ResourceVersion == new.(*coreV1.Pod).ResourceVersion {
+		UpdateFunc: func(oldResource, newResource interface{}) {
+			if oldResource.(*coreV1.Pod).ResourceVersion == newResource.(*coreV1.Pod).ResourceVersion {
 				// no change --> nothing to do.
 				return
 			}
-			mon.enqueuePod(new)
+			mon.enqueuePod(newResource)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string
