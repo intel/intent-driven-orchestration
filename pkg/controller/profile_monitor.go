@@ -62,12 +62,12 @@ func NewKPIProfileMonitor(cfg common.MonitorConfig, profileClient clientSet.Inte
 	// handle add, update & delete.
 	_, _ = profileInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
-		UpdateFunc: func(old, new interface{}) {
-			if old.(*v1alpha1.KPIProfile).ResourceVersion == new.(*v1alpha1.KPIProfile).ResourceVersion {
+		UpdateFunc: func(oldResource, newResource interface{}) {
+			if oldResource.(*v1alpha1.KPIProfile).ResourceVersion == newResource.(*v1alpha1.KPIProfile).ResourceVersion {
 				// no change --> nothing to do.
 				return
 			}
-			mon.enqueueItem(new)
+			mon.enqueueItem(newResource)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string

@@ -451,7 +451,7 @@ func (f *testFixture) setWorkloadState(pods map[string]map[string]interface{}, r
 	// if deployment does not exist - add it.
 	res, err := f.k8sClient.AppsV1().Deployments("default").Get(context.TODO(), "function-deployment", metaV1.GetOptions{})
 	if err != nil || res == nil {
-		repl := int32(len(pods))
+		repl := int32(len(pods)) //nolint:gosec // explanation: casting len to int64 for API compatibility
 		deployment := &appsV1.Deployment{
 			ObjectMeta: metaV1.ObjectMeta{
 				Name:      "function-deployment",
@@ -628,12 +628,12 @@ func (f *testFixture) setCurrentData(vals map[string]map[string]float64) {
 }
 
 // comparePlans compares two planes and returns false if they are not the same.
-func comparePlans(old []map[string]interface{}, new []planner.Action) bool {
-	if len(new) != len(old) {
+func comparePlans(onePlan []map[string]interface{}, anotherPlan []planner.Action) bool {
+	if len(anotherPlan) != len(onePlan) {
 		return false
 	}
 	var oldPlan []planner.Action
-	for _, entry := range old {
+	for _, entry := range onePlan {
 		tmp := planner.Action{
 			Name:       entry["name"].(string),
 			Properties: entry["properties"],
@@ -641,18 +641,18 @@ func comparePlans(old []map[string]interface{}, new []planner.Action) bool {
 		oldPlan = append(oldPlan, tmp)
 	}
 	for i, item := range oldPlan {
-		if item.Name != new[i].Name {
-			klog.Infof("Expected action name: %v - got %v", item.Name, new[i].Name)
+		if item.Name != anotherPlan[i].Name {
+			klog.Infof("Expected action name: %v - got %v", item.Name, anotherPlan[i].Name)
 			return false
 		}
 		one := fmt.Sprintf("%v", item.Properties)
-		another := fmt.Sprintf("%v", new[i].Properties)
+		another := fmt.Sprintf("%v", anotherPlan[i].Properties)
 		if one != another && item.Name != "rmPod" {
 			klog.Infof("Expected property: %v - got %v", one, another)
 			return false
 		} else if item.Name == "rmPod" {
 			if one != another && len(one) == len(another) {
-				klog.Warningf("Not super sure - but looks ok: %v - %v", item.Properties, new[i].Properties)
+				klog.Warningf("Not super sure - but looks ok: %v - %v", item.Properties, anotherPlan[i].Properties)
 			} else if one != another {
 				klog.Infof("This does not look right; expected: %v - got %v", one, another)
 				return false

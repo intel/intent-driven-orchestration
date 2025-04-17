@@ -42,11 +42,11 @@ func NewIntentMonitor(intentClient clientSet.Interface, intentInformer informers
 	// functions handler.
 	_, _ = intentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
-		UpdateFunc: func(old, new interface{}) {
-			if old.(*v1alpha1.Intent).ResourceVersion == new.(*v1alpha1.Intent).ResourceVersion {
+		UpdateFunc: func(oldResource, newResource interface{}) {
+			if oldResource.(*v1alpha1.Intent).ResourceVersion == newResource.(*v1alpha1.Intent).ResourceVersion {
 				return
 			}
-			mon.enqueueItem(new)
+			mon.enqueueItem(newResource)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string
