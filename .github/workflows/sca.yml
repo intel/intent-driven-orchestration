@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - run: |
           wget -q https://github.com/koalaman/shellcheck/releases/download/stable/shellcheck-stable.linux.x86_64.tar.xz
           tar -xvf shellcheck-stable.linux.x86_64.tar.xz
@@ -22,12 +24,16 @@ jobs:
     name: Hadolint
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - run: wget -q https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -O hadolint; chmod +x hadolint ; find . -type f \( -name "Dockerfile*" \) -print0 | xargs -n 1 -0 ./hadolint ;
   gofmt-imports:
     runs-on: ubuntu-latest
     name: Go Fmt and Go Import
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
@@ -42,6 +48,8 @@ jobs:
     name: lint
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
