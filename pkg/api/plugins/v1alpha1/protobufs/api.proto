@@ -58,6 +58,7 @@ message Intent {
   string target_key = 3;
   string target_kind = 4;
   map<string, double> objectives = 5;
+  // We are not copying over tolerations atm; those are not needed by the actuators.
 }
 
 // ProfileType defines the type of KPI Profiles.
@@ -73,6 +74,7 @@ enum ProfileType{
 message Profile {
   string key = 1;
   ProfileType profile_type = 2;
+  bool minimize = 3;
   // We are not copying over endpoints, query etc. for security reasons; those are not needed by the actuators.
 }
 

@@ -13,6 +13,7 @@ import datetime
 import io
 import logging
 import os
+from datetime import datetime, timezone
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -115,13 +116,13 @@ def store_result(popt,
     latency_range = (min(data[args.latency]), max(data[args.latency]))
     cpu_range = (min(data["cpus"]), max(data["cpus"]))
     training_features = ["cpus"]
-    timestamp = datetime.datetime.utcnow()
+    timestamp = datetime.now(timezone.utc)
     doc = {"name": args.name,
            "profileName": args.latency,
            "group": "vertical_scaling",
            "data": {"latencyRange": latency_range,
                     "cpuRange": cpu_range,
-                    "popt": popt.tolist(),
+                    "popt": [popt.tolist()],
                     "trainingFeatures": training_features,
                     "targetFeature": args.latency,
                     "image": img},

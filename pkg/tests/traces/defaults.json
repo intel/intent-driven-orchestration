@@ -3,7 +3,15 @@
     "task_channel_length": 100,
     "controller_timeout": 3,
     "plan_cache_ttl": 1000,
-    "plan_cache_timeout": 100
+    "plan_cache_timeout": 100,
+    "telemetry_endpoint": "http://127.0.0.1:39090/data",
+    "host_field": "host",
+    "metrics": [
+      {
+        "name": "renewable_energy_ratio",
+        "query": "renewable_energy_ratio@%s"
+      }
+    ]
   },
   "monitor": {
     "profile": {

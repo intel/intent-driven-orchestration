@@ -37,7 +37,7 @@ func (d dummyTracerCPU) GetEffect(_ string, _ string, profileName string,
 
 	tmp := constructor().(*CPUScaleEffect)
 	// the values will affect the latency and the tests results
-	tmp.Popt = [3]float64{400, 2, 30}
+	tmp.Popts = [][3]float64{{400, 2, 30}}
 	return tmp, nil
 }
 
@@ -63,6 +63,7 @@ func (f *CPUScaleActuatorFixture) newCPUScaleTestActuator(proactive bool) *CPUSc
 		CPUMax:                     2000,
 		CPUSafeGuardFactor:         0.95,
 		CPURounding:                100,
+		BoostFactor:                1.0,
 		ProActiveLatencyPercentage: 0.8,
 	}
 	if proactive {
@@ -122,7 +123,7 @@ func createReplicaSet() runtime.Object {
 					Containers: []v1.Container{
 						{Name: "pod0123",
 							Resources: v1.ResourceRequirements{
-								Limits: map[v1.ResourceName]resource.Quantity{
+								Requests: map[v1.ResourceName]resource.Quantity{
 									v1.ResourceCPU: resource.MustParse("200"),
 								},
 							},
@@ -140,13 +141,7 @@ func createReplicaSet() runtime.Object {
 func TestCPUScaleNextStateForSuccess(t *testing.T) {
 	f := newCPUScaleActuatorFixture(t)
 	actuator := f.newCPUScaleTestActuator(false)
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{
+	state := common.State{Intent: common.Intent{
 		Key:        "default/my-objective",
 		Priority:   1.0,
 		TargetKey:  "default/my-deployment",
@@ -154,7 +149,7 @@ func TestCPUScaleNextStateForSuccess(t *testing.T) {
 		Objectives: map[string]float64{"p99": 20.0}}}
 	goal := common.State{}
 	goal.Intent.Objectives = map[string]float64{"p99": 10.0}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	actuator.NextState(&state, &goal, profiles)
 }
 
@@ -180,7 +175,7 @@ func TestCPUScaleEffectForSuccess(t *testing.T) {
 	f := newCPUScaleActuatorFixture(t)
 	actuator := f.newCPUScaleTestActuator(false)
 	s0 := common.State{}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	actuator.Effect(&s0, profiles)
 }
 
@@ -198,13 +193,7 @@ func TestCPUScaleNextStateForFailure(t *testing.T) {
 	actuator := f.newCPUScaleTestActuator(false)
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -230,12 +219,12 @@ func TestCPUScaleNextStateForFailure(t *testing.T) {
 		"default/availability": 0.999,
 	}
 	profiles := map[string]common.Profile{
-		"default/p99": {ProfileType: common.ProfileTypeFromText("latency")},
+		"default/p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
 	}
 
 	// no data in knowledge base.
-	profiles["default/throughput"] = common.Profile{ProfileType: common.ProfileTypeFromText("throughput")}
-	profiles["default/blurb"] = common.Profile{ProfileType: common.ProfileTypeFromText("latency")}
+	profiles["default/throughput"] = common.Profile{ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false}
+	profiles["default/blurb"] = common.Profile{ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}
 	state.Intent.Objectives["default/blurb"] = 42.0
 	state.Intent.Objectives["default/throughput"] = 200.0
 	states, _, _ := actuator.NextState(&state, &goal, profiles)
@@ -320,7 +309,7 @@ func TestCPUScalePerformForFailure(t *testing.T) {
 // TestCPUScaleGetResourcesForFailure tests for failure
 func TestCPUScaleGetResourcesForFailure(t *testing.T) {
 	s0 := common.State{Resources: map[string]int64{"a_cpu_limits": 100}}
-	res := getResourceValues(&s0)
+	res, _ := getResourceValues(&s0)
 	if res != 0 {
 		t.Errorf("Should have been 0 - was: %d.", res)
 	}
@@ -334,13 +323,7 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	actuator := f.newCPUScaleTestActuator(false)
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -363,8 +346,9 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	goal := common.State{}
 	goal.Intent.Objectives = map[string]float64{"default/p99": 50.0}
 	profiles := map[string]common.Profile{
-		"default/p99": {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/p95": {ProfileType: common.ProfileTypeFromText("latency")},
+		"default/p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/p95": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/p50": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
 	}
 
 	// if we are better than goal -> do nothing.
@@ -387,7 +371,7 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	delete(state.CurrentData, actionName)
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
 	if len(actions) != 1 || actions[0].Properties.(map[string]int64)["value"] != 800 {
-		t.Errorf("Extpected one action to set 800 - got: %v", actions)
+		t.Errorf("Expected one action to set 800 - got: %v", actions)
 	}
 
 	// to strict of a goal.
@@ -415,7 +399,7 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	// maxProactive reached.
 	delete(state.CurrentPods, "proactiveResourceAlloc")
 	state.Resources = map[string]int64{
-		"1_cpu_limits": actuator.cfg.MaxProActiveCPU,
+		"1_cpu_requests": actuator.cfg.MaxProActiveCPU,
 	}
 	states, utilities, actions = actuator.NextState(&state, &goal, profiles)
 	if len(states) != 0 || len(utilities) != 0 || len(actions) != 0 {
@@ -432,18 +416,27 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 		t.Errorf("Should contain 1 proactive action; was: %v", actions)
 	}
 
+	// ensure we get as many states back as we have objectives.
+	delete(state.Intent.Objectives, "default/p95")
+	delete(goal.Intent.Objectives, "default/p95")
+	state.Resources["1_cpu_limits"] = 1600
+	state.Resources["1_cpu_requests"] = 1600
+	state.Intent.Objectives["default/p99"] = 50
+	state.Intent.Objectives["default/p50"] = 50
+	goal.Intent.Objectives["default/p99"] = 40
+	goal.Intent.Objectives["default/p50"] = 40
+	klog.Infof("Current %+v, Goal %+v", state, goal)
+	states, _, _ = actuator.NextState(&state, &goal, profiles)
+	if len(states) != 2 {
+		t.Errorf("Should have returned 2 states; was: %v", states)
+	}
+
 	// ensure an "empty" state does not crash the actuator.
 	actuator = f.newCPUScaleTestActuator(false)
 	delete(goal.Intent.Objectives, "default/p95")
 	goal.Intent.Objectives["default/p99"] = 120
 	emptyState := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -454,6 +447,35 @@ func TestCPUScaleNextStateForSanity(t *testing.T) {
 	_, _, actions = actuator.NextState(&emptyState, &goal, profiles)
 	if len(actions) != 0 {
 		t.Errorf("Should contain no action; was: %v", actions)
+	}
+
+	// test boost factor - QoS should be set accordingly.
+	actuator = f.newCPUScaleTestActuator(false)
+	actuator.cfg.BoostFactor = 0.8
+	delete(state.Intent.Objectives, "default/p95")
+	state.Resources = nil
+	state.Intent.Objectives["default/p99"] = 200
+	states, _, _ = actuator.NextState(&state, &goal, profiles)
+	if len(states) != 2 {
+		t.Errorf("Should have return at least 2 states - was %v", states)
+	}
+	for name, pod := range states[0].CurrentPods {
+		if pod.QoSClass != "BestEffort" {
+			t.Errorf("Expected POD %s to be in besteffort QoS - was: %s.", name, pod.QoSClass)
+		}
+	}
+
+	// boost factor >= 1.0
+	actuator = f.newCPUScaleTestActuator(false)
+	actuator.cfg.BoostFactor = 2.0
+	states, _, _ = actuator.NextState(&state, &goal, profiles)
+	if len(states) != 2 { // 2 objectives.
+		t.Errorf("Should have return at least 2 state - was %v", states)
+	}
+	for name, pod := range states[0].CurrentPods {
+		if pod.QoSClass != "Burstable" {
+			t.Errorf("Expected POD %s to be in burstable QoS - was: %s.", name, pod.QoSClass)
+		}
 	}
 }
 
@@ -521,6 +543,7 @@ func TestCPUScalePerformForSanity(t *testing.T) {
 	// Test boost factor.
 	f.client.ClearActions()
 	f.objects = []runtime.Object{createReplicaSet()}
+	actuator = f.newCPUScaleTestActuator(false)
 	actuator.Perform(&s0, plan)
 	expectedActions = []string{"get", "update"}
 	for i, action := range f.client.Actions() {
@@ -542,32 +565,40 @@ func TestCPUScalePerformForSanity(t *testing.T) {
 		t.Errorf("Limits should have been 1000; was: %v", res[0].Resources.Limits["cpu"])
 	}
 
-	//// Boost factor < 1.0 should reset to 1.0
-	//f.client.ClearActions()
-	//f.objects = []runtime.Object{createReplicaSet()}
-	//actuator.cfg.BoostFactor = 0.9
-	//actuator.Perform(&s0, plan)
-	//updatedRS, _ = f.client.AppsV1().ReplicaSets("default").Get(context.TODO(), "my-replicaset", metaV1.GetOptions{})
-	//res = updatedRS.Spec.Template.Spec.Containers
-	//val, ok = res[0].Resources.Limits["cpu"]
-	//if val.MilliValue() != 1000 || !ok {
-	//	t.Errorf("Limits should have been 1000; was: %v", res[0].Resources.Limits["cpu"])
-	//}
+	// Boost factor < 1.0 should lead to no limits being set.
+	f.client.ClearActions()
+	f.objects = []runtime.Object{createReplicaSet()}
+	actuator = f.newCPUScaleTestActuator(false)
+	actuator.cfg.BoostFactor = 0.9
+	actuator.Perform(&s0, plan)
+	updatedRS, _ = f.client.AppsV1().ReplicaSets("default").Get(context.TODO(), "my-replicaset", metaV1.GetOptions{})
+	res = updatedRS.Spec.Template.Spec.Containers
+	val, ok = res[0].Resources.Limits["cpu"]
+	if ok {
+		t.Errorf("Limits should not have been set; was: %v", val)
+	}
+
+	// Boost factor > 1.0 should lead to POD being in Burstable QoS.
+	f.client.ClearActions()
+	f.objects = []runtime.Object{createReplicaSet()}
+	actuator = f.newCPUScaleTestActuator(false)
+	actuator.cfg.BoostFactor = 2.0
+	actuator.Perform(&s0, plan)
+	updatedRS, _ = f.client.AppsV1().ReplicaSets("default").Get(context.TODO(), "my-replicaset", metaV1.GetOptions{})
+	res = updatedRS.Spec.Template.Spec.Containers
+	val, ok = res[0].Resources.Limits["cpu"]
+	if val.MilliValue() != 2000 || !ok {
+		t.Errorf("Limits should have been 2000; was: %v", res[0].Resources.Limits["cpu"])
+	}
 }
 
 // TestCPUScaleEffectForSanity tests for sanity.
 func TestCPUScaleEffectForSanity(t *testing.T) {
 	f := newCPUScaleActuatorFixture(t)
 	// this will "just" trigger a python script.
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment",
+	state := common.State{Intent: common.Intent{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment",
 		TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0}}}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	actuator := f.newCPUScaleTestActuator(false)
 	actuator.Effect(&state, profiles)
 
@@ -579,27 +610,26 @@ func TestCPUScaleEffectForSanity(t *testing.T) {
 // TestCPUScaleGetResourcesForSuccess tests for sanity.
 func TestCPUScaleGetResourcesForSanity(t *testing.T) {
 	s0 := common.State{Resources: map[string]int64{}}
-	res := getResourceValues(&s0)
+	res, _ := getResourceValues(&s0)
 	if res != 0 {
 		t.Errorf("Should have been 0 - was: %v", res)
 	}
-
 	// request defined.
 	s0.Resources["0_cpu_requests"] = 200
-	res = getResourceValues(&s0)
+	res, _ = getResourceValues(&s0)
 	if res != 200 {
 		t.Errorf("Should have been 200 - was: %v", res)
 	}
 	// limits defined.
 	s0.Resources["0_cpu_limits"] = 400
-	res = getResourceValues(&s0)
+	res, _ = getResourceValues(&s0)
 	if res != 400 {
 		t.Errorf("Should have been 400 - was: %v", res)
 	}
 	// the last container matters.
-	s0.Resources["1_cpu_limits"] = 100
-	res = getResourceValues(&s0)
-	if res != 100 {
+	s0.Resources["1_cpu_requests"] = 100
+	res, containerIndex := getResourceValues(&s0)
+	if res != 100 || containerIndex != 1 {
 		t.Errorf("Should have been 100 - was: %v", res)
 	}
 }
@@ -685,8 +715,8 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 				},
 				goal: newState,
 				profiles: map[string]common.Profile{
-					"default/p95latency":   {ProfileType: common.ProfileTypeFromText("latency")},
-					"default/availability": {ProfileType: common.ProfileTypeFromText("availability")},
+					"default/p95latency":   {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+					"default/availability": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 				},
 			},
 
@@ -706,7 +736,7 @@ func TestCPUScaleActuator_NextState(t *testing.T) {
 				apps:   tt.fields.apps,
 			}
 			newState.Intent.Objectives["default/p95latency"] = cs.predictLatency(
-				[]float64{400, 2, 30}, 900)
+				[3]float64{400, 2, 30}, 900)
 			newState.Intent.Objectives["default/availability"] = 1
 			got, got1, got2 := cs.NextState(&tt.args.state, &tt.args.goal, tt.args.profiles) //#nosec G601 -- NA as this is a test.
 
@@ -757,7 +787,7 @@ func TestCPUScaleActuator_predictLatencyCPU(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := actuator.predictLatency(tt.args.popt, float64(tt.args.limCPU)); math.Round(got) != tt.want {
+			if got := actuator.predictLatency([3]float64(tt.args.popt), float64(tt.args.limCPU)); math.Round(got) != tt.want {
 				t.Errorf("predictLatency() = %v, want %v", got, tt.want)
 			}
 		})

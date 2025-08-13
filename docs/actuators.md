@@ -68,6 +68,10 @@ functions in the next section to better understand how the system selects what t
 Furthermore, the implementation of ***NextState()*** can support the opportunistic planning capabilities, by adding new
 states, that although they do not satisfy the desired still at least move the system in the right direction.
 
+Note that the parameters of the actions are defined by **interface{}**. Ideally a map is used to represent the 
+parameters. For example, they can be represented as a _map[string]int64_ or _map[string]string_. Other
+types of values in the map will be cast to string to support the GRPC plugin mechanism. 
+
 #### Utility/Cost functions
 
 Utilities are used to steer the planner. Planners will deem an action to be favorable if the actuator returns a low

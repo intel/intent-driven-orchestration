@@ -4,8 +4,11 @@ import (
 	"testing"
 )
 
-// pathToAnalyticsScript defines the path to an existing script for this actuator.
-const pathToAnalyticsScript = "../../../pkg/planner/actuators/platform/analyze.py"
+// pathToAnalyticsScript defines the path to an existing analytics script for this actuator.
+const pathToAnalyticsScript = "../../../pkg/planner/actuators/platform/analytics/rdt_effect.py"
+
+// pathToPredictScript defines the path to an existing prediction script for this actuator.
+const pathToPredictScript = "../../../pkg/planner/actuators/platform/analytics/rdt_predict.py"
 
 func TestIsValidConf(t *testing.T) {
 	type args struct {
@@ -21,17 +24,17 @@ func TestIsValidConf(t *testing.T) {
 	}{
 		{
 			name:    "tc-0",
-			args:    args{"python3", pathToAnalyticsScript, "../../../pkg/planner/actuators/platform/predict.py", []string{"cos0", "cos1"}},
+			args:    args{"python3", pathToAnalyticsScript, pathToPredictScript, []string{"cos0", "cos1"}},
 			wantErr: false,
 		},
 		{
 			name:    "tc-1",
-			args:    args{"", pathToAnalyticsScript, "../../../pkg/planner/actuators/platform/predict.py", []string{"cos0", "cos1"}},
+			args:    args{"", pathToAnalyticsScript, pathToPredictScript, []string{"cos0", "cos1"}},
 			wantErr: true, // wrong interpreter
 		},
 		{
 			name:    "tc-2",
-			args:    args{"python3", "", "../../../pkg/planner/actuators/platform/predict.py", []string{"cos0", "cos1"}},
+			args:    args{"python3", "", pathToPredictScript, []string{"cos0", "cos1"}},
 			wantErr: true, // invalid analytics script
 		},
 		{
@@ -41,7 +44,7 @@ func TestIsValidConf(t *testing.T) {
 		},
 		{
 			name:    "tc-4",
-			args:    args{"python3", pathToAnalyticsScript, "../../../pkg/planner/actuators/platform/predict.py", []string{}},
+			args:    args{"python3", pathToAnalyticsScript, pathToPredictScript, []string{}},
 			wantErr: true, // invalid cos options
 		},
 	}

@@ -23,7 +23,7 @@ type IntentMonitor struct {
 	intentClient clientSet.Interface
 	intentLister lister.IntentLister
 	intentSynced cache.InformerSynced
-	queue        workqueue.RateLimitingInterface
+	queue        workqueue.TypedRateLimitingInterface[string]
 	update       chan<- common.Intent
 	syncHandler  func(key string) error // For testing purposes.
 }
@@ -34,7 +34,7 @@ func NewIntentMonitor(intentClient clientSet.Interface, intentInformer informers
 		intentClient: intentClient,
 		intentLister: intentInformer.Lister(),
 		intentSynced: intentInformer.Informer().HasSynced,
-		queue:        workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "Intents"}),
+		queue:        workqueue.NewTypedRateLimitingQueueWithConfig[string](workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: "Intents"}),
 		update:       ch,
 	}
 	mon.syncHandler = mon.processIntent
@@ -42,11 +42,11 @@ func NewIntentMonitor(intentClient clientSet.Interface, intentInformer informers
 	// functions handler.
 	_, _ = intentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
-		UpdateFunc: func(oldResource, newResource interface{}) {
-			if oldResource.(*v1alpha1.Intent).ResourceVersion == newResource.(*v1alpha1.Intent).ResourceVersion {
+		UpdateFunc: func(oldVersion, newVersion interface{}) {
+			if oldVersion.(*v1alpha1.Intent).ResourceVersion == newVersion.(*v1alpha1.Intent).ResourceVersion {
 				return
 			}
-			mon.enqueueItem(newResource)
+			mon.enqueueItem(newVersion)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string
@@ -107,7 +107,7 @@ func (mon *IntentMonitor) processNextWorkItem() bool {
 	defer mon.queue.Done(obj)
 
 	// process obj.
-	err := mon.syncHandler(obj.(string))
+	err := mon.syncHandler(obj)
 	if err == nil {
 		mon.queue.Forget(obj)
 		return true
@@ -140,20 +140,25 @@ func (mon *IntentMonitor) processIntent(key string) error {
 
 	// easier to work with a map in the planner later on.
 	objectivesMap := make(map[string]float64)
+	tolerationsMap := make(map[string]float64)
 	for _, target := range intent.Spec.Objectives {
 		if _, ok := objectivesMap[target.MeasuredBy]; ok {
 			// TODO: set status to faulty.
 			klog.Warningf("There are multiple targets with the same profile, that should not happen: %s.", target.Name)
 		}
 		objectivesMap[target.MeasuredBy] = target.Value
+		// b/c a default value is set we are sure that both maps are equal length.
+		tolerationsMap[target.MeasuredBy] = target.Tolerance
 	}
 
 	updateObject := common.Intent{
-		Key:        key,
-		Priority:   intent.Spec.Priority,
-		TargetKey:  intent.Spec.TargetRef.Name,
-		TargetKind: intent.Spec.TargetRef.Kind,
-		Objectives: objectivesMap,
+		Key:             key,
+		Priority:        intent.Spec.Priority,
+		TargetKey:       intent.Spec.TargetRef.Name,
+		TargetKind:      intent.Spec.TargetRef.Kind,
+		ActivelyManaged: intent.Spec.ActivelyManaged,
+		Objectives:      objectivesMap,
+		Tolerations:     tolerationsMap,
 	}
 	mon.update <- updateObject
 

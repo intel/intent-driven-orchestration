@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: sample-function
-          image: testfunction/rust_function:0.1
+          image: testfunction/rust_function:0.2
           ports:
             - containerPort: 8080
           env:

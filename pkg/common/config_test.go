@@ -64,6 +64,11 @@ func TestParseConfig(t *testing.T) {
 	type args struct {
 		filename string
 	}
+	logFile, err := os.CreateTemp("", "planner.log")
+	if err != nil {
+		klog.Error(err)
+		return
+	}
 	configUnmashal := SetupTestConfigFile(2, 100, 30, 45, 45000, 5000,
 		2, 2, 2,
 		0, 2000, 10, 33333,
@@ -73,7 +78,8 @@ func TestParseConfig(t *testing.T) {
 		"cpu_value",
 		"avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)",
 		"artefacts/examples/default_queries.json",
-		"plugin-manager-service")
+		"plugin-manager-service",
+		logFile.Name())
 	configMashal, err := json.MarshalIndent(configUnmashal, "", " ")
 	if err != nil {
 		klog.Error(err)
@@ -94,13 +100,62 @@ func TestParseConfig(t *testing.T) {
 		"cpu_value",
 		"avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)",
 		"artefacts/examples/default_queries.json",
-		"plugin-manager-service")
+		"plugin-manager-service",
+		logFile.Name())
 	configMashal, err = json.MarshalIndent(configUnmashal, "", " ")
 	if err != nil {
 		klog.Error(err)
 		return
 	}
 	filename = "test-case2.json"
+	err = os.WriteFile(filename, configMashal, 0600)
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+
+	// Test with empty log file (success: default standard log output)
+	configUnmashal = SetupTestConfigFile(2, 100, 30, 45, 45000, 5000,
+		2, 2, 2,
+		0, 2000, 10, 33333,
+		"mongodb://planner-mongodb-service:27017/",
+		"http://prometheus-service.telemetry:9090/api/v1/query",
+		"exported_instance",
+		"cpu_value",
+		"avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)",
+		"artefacts/examples/default_queries.json",
+		"plugin-manager-service",
+		"")
+	configMashal, err = json.MarshalIndent(configUnmashal, "", " ")
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+	filename = "test-case3.json"
+	err = os.WriteFile(filename, configMashal, 0600)
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+
+	// Test with invalid log file path (error)
+	configUnmashal = SetupTestConfigFile(2, 100, 30, 45, 45000, 5000,
+		2, 2, 2,
+		0, 2000, 10, 33333,
+		"mongodb://planner-mongodb-service:27017/",
+		"http://prometheus-service.telemetry:9090/api/v1/query",
+		"exported_instance",
+		"cpu_value",
+		"avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)",
+		"artefacts/examples/default_queries.json",
+		"plugin-manager-service",
+		"<logfile>")
+	configMashal, err = json.MarshalIndent(configUnmashal, "", " ")
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+	filename = "test-case4.json"
 	err = os.WriteFile(filename, configMashal, 0600)
 	if err != nil {
 		klog.Error(err)
@@ -117,7 +172,10 @@ func TestParseConfig(t *testing.T) {
 			name: "tc-1",
 			args: args{filename: "test-case1.json"},
 			want: Config{
-				Generic: GenericConfig{MongoEndpoint: "mongodb://planner-mongodb-service:27017/"},
+				Generic: GenericConfig{
+					MongoEndpoint: "mongodb://planner-mongodb-service:27017/",
+					LogFile:       logFile.Name(),
+				},
 				Controller: ControllerConfig{
 					Workers:           2,
 					TaskChannelLength: 100,
@@ -175,7 +233,10 @@ func TestParseConfig(t *testing.T) {
 			name: "tc-2",
 			args: args{filename: "test-case2.json"},
 			want: Config{
-				Generic: GenericConfig{MongoEndpoint: "mongodb://planner-mongodb-service:27017/"},
+				Generic: GenericConfig{
+					MongoEndpoint: "mongodb://planner-mongodb-service:27017/",
+					LogFile:       logFile.Name(),
+				},
 				Controller: ControllerConfig{
 					Workers:           2,
 					TaskChannelLength: 100,
@@ -229,6 +290,128 @@ func TestParseConfig(t *testing.T) {
 			},
 			wantErr: true, // want error
 		},
+		{
+			name: "tc-3",
+			args: args{filename: "test-case3.json"},
+			want: Config{
+				Generic: GenericConfig{
+					MongoEndpoint: "mongodb://planner-mongodb-service:27017/",
+					// no log file provided
+				},
+				Controller: ControllerConfig{
+					Workers:           2,
+					TaskChannelLength: 100,
+					InformerTimeout:   30,
+					ControllerTimeout: 45,
+					PlanCacheTTL:      45000,
+					PlanCacheTimeout:  5000,
+					TelemetryEndpoint: "http://prometheus-service.telemetry:9090/api/v1/query",
+					HostField:         "exported_instance",
+					Metrics: []struct {
+						Name  string "json:\"name,omitempty\""
+						Query string "json:\"query,omitempty\""
+					}{
+						{Name: "cpu_value", Query: "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"},
+					},
+				},
+				Monitor: MonitorConfig{
+					Pod: struct {
+						Workers int "json:\"workers\""
+					}{
+						Workers: 2,
+					},
+					Profile: struct {
+						Workers int    "json:\"workers\""
+						Queries string "json:\"queries\""
+					}{
+						Workers: 2,
+						Queries: "artefacts/examples/default_queries.json",
+					},
+					Intent: struct {
+						Workers int "json:\"workers\""
+					}{
+						Workers: 2,
+					},
+				},
+				Planner: PlannerConfig{
+					AStar: struct {
+						OpportunisticCandidates int    "json:\"opportunistic_candidates\""
+						MaxStates               int    "json:\"max_states\""
+						MaxCandidates           int    "json:\"max_candidates\""
+						PluginManagerEndpoint   string "json:\"plugin_manager_endpoint\""
+						PluginManagerPort       int    "json:\"plugin_manager_port\""
+					}{
+						OpportunisticCandidates: 0,
+						MaxStates:               2000,
+						MaxCandidates:           10,
+						PluginManagerEndpoint:   "plugin-manager-service",
+						PluginManagerPort:       33333,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "tc-4",
+			args: args{filename: "test-case4.json"},
+			want: Config{
+				Generic: GenericConfig{
+					MongoEndpoint: "mongodb://planner-mongodb-service:27017/",
+					LogFile:       "<logfile>",
+				},
+				Controller: ControllerConfig{
+					Workers:           2,
+					TaskChannelLength: 100,
+					InformerTimeout:   30,
+					ControllerTimeout: 45,
+					PlanCacheTTL:      45000,
+					PlanCacheTimeout:  5000,
+					TelemetryEndpoint: "http://prometheus-service.telemetry:9090/api/v1/query",
+					HostField:         "exported_instance",
+					Metrics: []struct {
+						Name  string "json:\"name,omitempty\""
+						Query string "json:\"query,omitempty\""
+					}{
+						{Name: "cpu_value", Query: "avg(collectd_cpu_percent{exported_instance=~\"%s\"})by(exported_instance)"},
+					},
+				},
+				Monitor: MonitorConfig{
+					Pod: struct {
+						Workers int "json:\"workers\""
+					}{
+						Workers: 2,
+					},
+					Profile: struct {
+						Workers int    "json:\"workers\""
+						Queries string "json:\"queries\""
+					}{
+						Workers: 2,
+						Queries: "artefacts/examples/default_queries.json",
+					},
+					Intent: struct {
+						Workers int "json:\"workers\""
+					}{
+						Workers: 2,
+					},
+				},
+				Planner: PlannerConfig{
+					AStar: struct {
+						OpportunisticCandidates int    "json:\"opportunistic_candidates\""
+						MaxStates               int    "json:\"max_states\""
+						MaxCandidates           int    "json:\"max_candidates\""
+						PluginManagerEndpoint   string "json:\"plugin_manager_endpoint\""
+						PluginManagerPort       int    "json:\"plugin_manager_port\""
+					}{
+						OpportunisticCandidates: 0,
+						MaxStates:               2000,
+						MaxCandidates:           10,
+						PluginManagerEndpoint:   "plugin-manager-service",
+						PluginManagerPort:       33333,
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -250,6 +433,7 @@ func TestParseConfig(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 func SetupTestConfigFile(
@@ -272,9 +456,13 @@ func SetupTestConfigFile(
 	metricName,
 	metricQuery,
 	profileQuery,
-	pluginEndpoint string) Config {
+	pluginEndpoint string,
+	LogFile string) Config {
 	return Config{
-		Generic: GenericConfig{MongoEndpoint: mongoEndpoint},
+		Generic: GenericConfig{
+			MongoEndpoint: mongoEndpoint,
+			LogFile:       LogFile,
+		},
 		Controller: ControllerConfig{
 			Workers:           workers,
 			TaskChannelLength: taskchannellength,

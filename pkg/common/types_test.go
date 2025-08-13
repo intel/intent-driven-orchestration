@@ -169,9 +169,9 @@ func TestDistanceForSanity(t *testing.T) {
 		},
 	}
 	profiles := map[string]Profile{
-		"p99": {ProfileType: ProfileTypeFromText("latency")},
-		"p95": {ProfileType: ProfileTypeFromText("latency")},
-		"p50": {ProfileType: ProfileTypeFromText("latency")},
+		"p99": {ProfileType: ProfileTypeFromText("latency"), Minimize: true},
+		"p95": {ProfileType: ProfileTypeFromText("latency"), Minimize: true},
+		"p50": {ProfileType: ProfileTypeFromText("latency"), Minimize: true},
 	}
 	distance01 := s0.Distance(&s1, profiles)
 	distance12 := s1.Distance(&s2, profiles)
@@ -295,10 +295,10 @@ func TestIsBetterStateForSanity(t *testing.T) {
 	s10.Intent.Objectives["rps"] = 10
 
 	profiles := map[string]Profile{
-		"p99":          {ProfileType: ProfileTypeFromText("latency")},
-		"availability": {ProfileType: ProfileTypeFromText("availability")},
-		"power":        {ProfileType: ProfileTypeFromText("power")},
-		"rps":          {ProfileType: ProfileTypeFromText("throughput")},
+		"p99":          {ProfileType: ProfileTypeFromText("latency"), Minimize: true},
+		"availability": {ProfileType: ProfileTypeFromText("availability"), Minimize: false},
+		"power":        {ProfileType: ProfileTypeFromText("power"), Minimize: true},
+		"rps":          {ProfileType: ProfileTypeFromText("throughput"), Minimize: false},
 	}
 
 	// deep-copy should be equal.

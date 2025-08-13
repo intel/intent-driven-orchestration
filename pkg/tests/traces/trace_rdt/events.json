@@ -1,0 +1,615 @@
+[{
+  "_id": {
+    "$oid": "65e8a5078aaaefa78b84a5e0"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:16:55.850Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 687.5
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "1_cpu_limits": 500,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 250,
+    "1_memory_requests": 536870912000,
+    "1_memory_limits": 536870912000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu request for container sample-function; cpu limit for container sample-function",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-7955c7f497-8kqzs": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Burstable"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 17.312844681973097
+    },
+    "ipc_value": {
+      "apollo0": 0.602549914901389
+    },
+    "avg_l2_miss": {
+      "apollo0": 713486.37
+    },
+    "avg_l2_hit": {
+      "apollo0": 25845978.95
+    }
+  },
+  "plan": [
+    {
+      "name": "scaleCPU",
+      "properties": {
+        "value": 1000
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65e8a5628aaaefa78b84a5e1"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:18:26.803Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 297.051
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5bfcfbd9cc-9hcdv": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 30.718091965755193
+    },
+    "ipc_value": {
+      "apollo0": 0.7575615441873361
+    },
+    "avg_l2_miss": {
+      "apollo0": 1204208.02
+    },
+    "avg_l2_hit": {
+      "apollo0": 56851448.96
+    }
+  },
+  "plan": [
+    {
+      "name": "configureRDT",
+      "properties": {
+        "option": "burstable"
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65e8a5bb8aaaefa78b84a5e2"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:19:55.998Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 276.111
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_memory_limits": 268435456000,
+    "0_cpu_limits": 100,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "rdt.resources.beta.kubernetes.io/pod": "burstable",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f"
+  },
+  "pods": {
+    "function-deployment-7c746868cb-4vd66": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 28.50192064047692
+    },
+    "ipc_value": {
+      "apollo0": 0.8165065257446075
+    },
+    "avg_l2_miss": {
+      "apollo0": 961796.5900000001
+    },
+    "avg_l2_hit": {
+      "apollo0": 56888561.18
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65e8a5e88aaaefa78b84a5e3"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:20:40.966Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 282.083
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "rdt.resources.beta.kubernetes.io/pod": "burstable",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-7c746868cb-4vd66": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 28.61255638960727
+    },
+    "ipc_value": {
+      "apollo0": 0.8153794736611958
+    },
+    "avg_l2_miss": {
+      "apollo0": 640840.04
+    },
+    "avg_l2_hit": {
+      "apollo0": 37935522.41
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65e8a6158aaaefa78b84a5e4"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:21:25.982Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 278.5
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000
+  },
+  "annotations": {
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "rdt.resources.beta.kubernetes.io/pod": "burstable",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-cpu-limit": "100m"
+  },
+  "pods": {
+    "function-deployment-7c746868cb-4vd66": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 24.525260486302443
+    },
+    "ipc_value": {
+      "apollo0": 0.8183643717288037
+    },
+    "avg_l2_miss": {
+      "apollo0": 963584.22
+    },
+    "avg_l2_hit": {
+      "apollo0": 56888748.96
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65e8a6428aaaefa78b84a5e5"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:22:10.917Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 264.167
+  },
+  "desired_objectives": {
+    "default/p95latency": 275.0
+  },
+  "resources": {
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "rdt.resources.beta.kubernetes.io/pod": "burstable",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-7c746868cb-4vd66": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "avg_l2_miss": {
+      "apollo0": 636668.4299999999
+    },
+    "avg_l2_hit": {
+      "apollo0": 37928655.84
+    },
+    "cpu_value": {
+      "apollo0": 24.451023845099982
+    },
+    "ipc_value": {
+      "apollo0": 0.825575225780129
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65e8a6518aaaefa78b84a5e6"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:22:25.897Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 273.125
+  },
+  "desired_objectives": {
+    "default/p95latency": 300.0
+  },
+  "resources": {
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 1000,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/inject": "enabled",
+    "rdt.resources.beta.kubernetes.io/pod": "burstable",
+    "viz.linkerd.io/tap-enabled": "true"
+  },
+  "pods": {
+    "function-deployment-7c746868cb-4vd66": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "ipc_value": {
+      "apollo0": 0.8251488443366977
+    },
+    "avg_l2_miss": {
+      "apollo0": 949524.6699999999
+    },
+    "avg_l2_hit": {
+      "apollo0": 56867328.300000004
+    },
+    "cpu_value": {
+      "apollo0": 24.95138126921185
+    }
+  },
+  "plan": [
+    {
+      "name": "configureRDT",
+      "properties": {
+        "option": "None"
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65e8a69c8aaaefa78b84a5e7"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:23:40.913Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 294.625
+  },
+  "desired_objectives": {
+    "default/p95latency": 300.0
+  },
+  "resources": {
+    "1_cpu_requests": 1000,
+    "1_cpu_limits": 1000,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_memory_requests": 536870912000
+  },
+  "annotations": {
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi"
+  },
+  "pods": {
+    "function-deployment-5bfcfbd9cc-8x46n": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 29.697044392243136
+    },
+    "ipc_value": {
+      "apollo0": 0.7383036137062259
+    },
+    "avg_l2_miss": {
+      "apollo0": 810030.56
+    },
+    "avg_l2_hit": {
+      "apollo0": 37762463.51
+    }
+  },
+  "plan": [
+    {
+      "name": "scaleCPU",
+      "properties": {
+        "value": 900
+      }
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "65e8a6f68aaaefa78b84a5e8"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:25:10.909Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 297.105
+  },
+  "desired_objectives": {
+    "default/p95latency": 300.0
+  },
+  "resources": {
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 900,
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 900,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/proxy-version": "stable-2.14.8",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/inject": "enabled"
+  },
+  "pods": {
+    "function-deployment-5db7cdb8d9-vwc7f": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "ipc_value": {
+      "apollo0": 0.7374209286956376
+    },
+    "avg_l2_miss": {
+      "apollo0": 785523.37
+    },
+    "avg_l2_hit": {
+      "apollo0": 36876681.15
+    },
+    "cpu_value": {
+      "apollo0": 26.320305116381096
+    }
+  },
+  "plan": null
+},{
+  "_id": {
+    "$oid": "65e8a7238aaaefa78b84a5e9"
+  },
+  "name": "default/my-intent",
+  "timestamp": {
+    "$date": "2024-03-06T17:25:55.815Z"
+  },
+  "current_objectives": {
+    "default/p95latency": 297.051
+  },
+  "desired_objectives": {
+    "default/p95latency": 300.0
+  },
+  "resources": {
+    "1_memory_requests": 536870912000,
+    "1_cpu_limits": 900,
+    "1_memory_limits": 536870912000,
+    "0_cpu_requests": 100,
+    "0_memory_requests": 268435456000,
+    "0_cpu_limits": 100,
+    "0_memory_limits": 268435456000,
+    "1_cpu_requests": 900
+  },
+  "annotations": {
+    "config.linkerd.io/proxy-cpu-limit": "100m",
+    "config.linkerd.io/proxy-memory-request": "256Mi",
+    "linkerd.io/inject": "enabled",
+    "linkerd.io/trust-root-sha256": "1128a81edac74e8510e0cef0082a94e9ddeb9a1436419a84745b7431e8f4852f",
+    "viz.linkerd.io/tap-enabled": "true",
+    "config.linkerd.io/proxy-cpu-request": "100m",
+    "config.linkerd.io/proxy-memory-limit": "256Mi",
+    "linkerd.io/created-by": "linkerd/proxy-injector stable-2.14.8",
+    "linkerd.io/proxy-version": "stable-2.14.8"
+  },
+  "pods": {
+    "function-deployment-5db7cdb8d9-vwc7f": {
+      "availability": 1.0,
+      "nodename": "apollo0",
+      "state": "Running",
+      "qosclass": "Guaranteed"
+    }
+  },
+  "data": {
+    "cpu_value": {
+      "apollo0": 26.42434360361244
+    },
+    "ipc_value": {
+      "apollo0": 0.7504397981213521
+    },
+    "avg_l2_miss": {
+      "apollo0": 1175778.8600000003
+    },
+    "avg_l2_hit": {
+      "apollo0": 56420046.79
+    }
+  },
+  "plan": null
+}]

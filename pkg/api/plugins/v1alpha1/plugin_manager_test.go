@@ -52,7 +52,7 @@ func newTestPluginManager(ctx context.Context) (protobufs.RegistrationClient, fu
 			klog.Errorf("Server serve error: %v", err)
 		}
 	}()
-
+	// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 	conn, _ := grpc.DialContext(ctx, "", grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 		return listener.Dial()
 	}), grpc.WithTransportCredentials(insecure.NewCredentials()))

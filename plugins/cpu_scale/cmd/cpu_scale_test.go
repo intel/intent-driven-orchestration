@@ -14,6 +14,7 @@ func TestIsValidConf(t *testing.T) {
 		cpuMax                     int64
 		cpuRounding                int64
 		maxProActiveCPU            int64
+		boostFactor                float64
 		cpuSafeGuardFactor         float64
 		proActiveLatencyPercentage float64
 		lookBack                   int
@@ -24,105 +25,115 @@ func TestIsValidConf(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "tc-0",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 0.1, 10000},
+			name:    "should_work",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, 0.1, 10000},
 			wantErr: false,
 		},
 		{
-			name:    "tc-1",
-			args:    args{"", pathToAnalyticsScript, 4000, 100, 0, 0.95, 0.1, 10000},
+			name:    "interpreter_empty",
+			args:    args{"", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, 0.1, 10000},
 			wantErr: true,
 		},
 		{
-			name:    "tc-2",
-			args:    args{"python3", "", 4000, 100, 0, 0.95, 0.1, 10000},
+			name:    "script_empty",
+			args:    args{"python3", "", 4000, 100, 0, 1.0, 0.95, 0.1, 10000},
 			wantErr: true,
 		},
 		{
-			name:    "tc-3",
-			args:    args{"python3", pathToAnalyticsScript, -1, 100, 0, 0.95, 0.1, 10000},
-			wantErr: true, // negative cpu
+			name:    "negative_cpu",
+			args:    args{"python3", pathToAnalyticsScript, -1, 100, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-4",
-			args:    args{"python3", pathToAnalyticsScript, 0, 100, 0, 0.95, 0.1, 10000},
-			wantErr: true, // zero cpu
+			name:    "zero_cpu",
+			args:    args{"python3", pathToAnalyticsScript, 0, 100, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-5",
-			args:    args{"python3", pathToAnalyticsScript, 999999999, 100, 0, 0.95, 0.1, 10000},
-			wantErr: true, // over limit cpu
+			name:    "over_cpu_limit",
+			args:    args{"python3", pathToAnalyticsScript, 999999999, 100, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-6",
-			args:    args{"python3", pathToAnalyticsScript, 4000, -1, 0, 0.95, 0.1, 10000},
-			wantErr: true, // negative round base
+			name:    "negative_rounding",
+			args:    args{"python3", pathToAnalyticsScript, 4000, -1, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-7",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 0, 0, 0.95, 0.1, 10000},
-			wantErr: true, // zero round base
+			name:    "zero_rounding",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 0, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-8",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 1001, 0, 0.95, 0.1, 10000},
-			wantErr: true, // over limit round base
+			name:    "over_limit_rounding",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 1001, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-9",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 101, 0, 0.95, 0.1, 10000},
-			wantErr: true, // not round base 10
+			name:    "rounding_not_base_10",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 101, 0, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-10",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, -1, 0.95, 0.1, 10000},
-			wantErr: true, // negative cpu for proactive
+			name:    "negative_proactive",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, -1, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-11",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 10000, 0.95, 0.1, 10000},
-			wantErr: true, // over limit cpu for proactive
+			name:    "over_limit_proactive",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 10000, 1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-12",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, -1.0, 0.1, 10000},
-			wantErr: true, // negative value for safeguard
+			name:    "boost_factor_to_small",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, -1.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-13",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.0, 0.1, 10000},
-			wantErr: true, // zero value for safeguard
+			name:    "boost_factor_to_big",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 12.0, 0.95, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-14",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 2.0, 0.1, 10000},
-			wantErr: true, // over limit for safeguard
+			name:    "negative_value_for_safeguard",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, -1.0, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-15",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, -1.0, 10000},
-			wantErr: true, // negative proactive latency fraction
+			name:    "zero_limit_safeguard",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.0, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-16",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.01, 10000},
-			wantErr: true, // over limit proactive latency fraction
+			name:    "over_limit_safeguard",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 2.0, 0.1, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-17",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.0, -1},
-			wantErr: true, // negative lookback.
+			name:    "negative_proactive_latency",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, -1.0, 10000},
+			wantErr: true,
 		},
 		{
-			name:    "tc-18",
-			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 0.95, 1.0, 999999},
-			wantErr: true, // over limit lookback.
+			name:    "over_limit_proactive_latency",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, 1.01, 10000},
+			wantErr: true,
+		},
+		{
+			name:    "negative_lookback",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, 1.0, -1},
+			wantErr: true,
+		},
+		{
+			name:    "over_limit_lookback",
+			args:    args{"python3", pathToAnalyticsScript, 4000, 100, 0, 1.0, 0.95, 1.0, 999999},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := isValidConf(tt.args.interpreter, tt.args.script, tt.args.cpuMax, tt.args.cpuRounding, tt.args.maxProActiveCPU,
-				tt.args.cpuSafeGuardFactor, tt.args.proActiveLatencyPercentage, tt.args.lookBack); (err != nil) != tt.wantErr {
+				tt.args.boostFactor, tt.args.cpuSafeGuardFactor, tt.args.proActiveLatencyPercentage, tt.args.lookBack); (err != nil) != tt.wantErr {
 				t.Errorf("isValidConf() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

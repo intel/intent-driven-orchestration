@@ -24,7 +24,7 @@ type PodMonitor struct {
 	podClient       kubernetes.Interface
 	podLister       coreLister.PodLister
 	podSynced       cache.InformerSynced
-	queue           workqueue.RateLimitingInterface
+	queue           workqueue.TypedRateLimitingInterface[string]
 	update          chan<- common.PodError
 	podsWithError   map[string]bool
 	syncHandler     func(key string) error // Enables us to test this easily.
@@ -61,7 +61,7 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 		podClient:     podClient,
 		podLister:     informer.Lister(),
 		podSynced:     informer.Informer().HasSynced,
-		queue:         workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "Pods"}),
+		queue:         workqueue.NewTypedRateLimitingQueueWithConfig[string](workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: "Pods"}),
 		update:        ch,
 		podsWithError: make(map[string]bool),
 		cacheLock:     sync.Mutex{},
@@ -72,12 +72,12 @@ func NewPodMonitor(podClient kubernetes.Interface, informer coreInformer.PodInfo
 	// event handlers.
 	_, _ = informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		// No need to AddFunc, as POD is first pending...through an update is initially gets ready.
-		UpdateFunc: func(oldResource, newResource interface{}) {
-			if oldResource.(*coreV1.Pod).ResourceVersion == newResource.(*coreV1.Pod).ResourceVersion {
+		UpdateFunc: func(oldVersion, newVersion interface{}) {
+			if oldVersion.(*coreV1.Pod).ResourceVersion == newVersion.(*coreV1.Pod).ResourceVersion {
 				// no change --> nothing to do.
 				return
 			}
-			mon.enqueuePod(newResource)
+			mon.enqueuePod(newVersion)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string
@@ -138,7 +138,7 @@ func (mon *PodMonitor) processNextWorkItem() bool {
 	defer mon.queue.Done(obj)
 
 	// process obj.
-	err := mon.syncHandler(obj.(string))
+	err := mon.syncHandler(obj)
 	if err == nil {
 		mon.queue.Forget(obj)
 		return true

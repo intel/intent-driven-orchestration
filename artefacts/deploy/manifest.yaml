@@ -199,7 +199,7 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: planner
-      image: 127.0.0.1:5000/planner:0.3.0
+      image: 127.0.0.1:5000/planner:0.4.0
       ports:
         - containerPort: 33333
       imagePullPolicy: Always

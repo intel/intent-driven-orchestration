@@ -14,11 +14,13 @@ hide class circle
 class Intent {
   targetKey
   targetKind
-  Priority
+  priority
+  active
 }
 class Objective {
   name
   value
+  tolerance
 }
 enum KPIType {
   latency
@@ -30,6 +32,7 @@ class KPIProfile {
   query: string
   endpoint: address
   external: bool
+  minimize: bool
 }
 Intent "1" *-right- "1..n" Objective: objectives
 Objective "0..*" -- "1" KPIProfile: measuredBy

@@ -34,6 +34,7 @@ type ActuatorClientStub struct {
 func newActuatorClientStub(pInfo *protobufs.PluginInfo, numberOfRetries int) (*ActuatorClientStub, error) {
 	klog.V(2).Infof("Connecting to plugin endpoint: %s.", pInfo.Endpoint)
 
+	// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 	conn, err := grpc.Dial(pInfo.Endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		klog.ErrorS(err, "Cannot connect to actuator plugin endpoint: ", pInfo.Endpoint)
@@ -41,6 +42,7 @@ func newActuatorClientStub(pInfo *protobufs.PluginInfo, numberOfRetries int) (*A
 	retries := numberOfRetries
 	for retries > 0 && err != nil && (conn == nil || conn.GetState() != connectivity.Ready) {
 		time.Sleep(5 * time.Second) // TODO: make configurable.
+		// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 		conn, err = grpc.Dial(pInfo.Endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
 			klog.ErrorS(err, "Cannot connect to actuator plugin endpoint: ", pInfo.Endpoint)
@@ -116,7 +118,8 @@ func toGrpcStates(states []common.State) []*protobufs.State {
 func toGrpcProfile(v *common.Profile) *protobufs.Profile {
 	return &protobufs.Profile{
 		Key:         v.Key,
-		ProfileType: protobufs.ProfileType(v.ProfileType), //nolint:gosec // explanation: only limited # of profile types exist.
+		ProfileType: protobufs.ProfileType(v.ProfileType), //nolint:gosec // explanation: only limit profile types exists.
+		Minimize:    v.Minimize,
 	}
 }
 

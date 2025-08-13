@@ -25,9 +25,6 @@ import (
 // delimiter for the key entries in the resources hashmap.
 const delimiter = "_"
 
-// boostFactor defines the multiplication factor for calculating resource limits from requests.
-const boostFactor = 1.0
-
 // actionName represents the name of the action.
 const actionName = "scaleCPU"
 
@@ -42,6 +39,7 @@ type CPUScaleConfig struct {
 	CPUMax                     int64   `json:"cpu_max"`
 	CPURounding                int64   `json:"cpu_rounding"`
 	CPUSafeGuardFactor         float64 `json:"cpu_safeguard_factor"`
+	BoostFactor                float64 `json:"boost_factor"`
 	MaxProActiveCPU            int64   `json:"max_proactive_cpu"`
 	ProActiveLatencyPercentage float64 `json:"proactive_latency_percentage"`
 	LookBack                   int     `json:"look_back"`
@@ -57,7 +55,7 @@ type CPUScaleEffect struct {
 	// Never ever think about making these non-public! Needed for marshalling this struct.
 	LatencyRange     [2]float64
 	CPURange         [2]float64
-	Popt             [3]float64
+	Popts            [][3]float64
 	TrainingFeatures [1]string
 	TargetFeature    string
 	Image            string
@@ -82,46 +80,55 @@ func (cs CPUScaleActuator) Group() string {
 // predictLatency uses the knowledge base to calculate the latency. It does use the parameters popt
 // that are obtained when sum of the squared residuals which is minimized. More info in:
 // https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.curve_fit.html
-func (cs CPUScaleActuator) predictLatency(popt []float64, limCPU float64) float64 {
+func (cs CPUScaleActuator) predictLatency(popt [3]float64, limCPU float64) float64 {
 	result := popt[0]*math.Exp(-popt[1]*(limCPU/1000)) + popt[2]
 	return result
 }
 
 // getResourceValues return the cpu resources associated with the last container of a POD.
-func getResourceValues(state *common.State) int64 {
-	cpuLimit := int64(0)
+func getResourceValues(state *common.State) (int64, int) {
 	cpuRequest := int64(0)
+	cpuLimit := int64(0)
 	lastIndex := -1
 	for key, value := range state.Resources {
 		items := strings.Split(key, delimiter)
+		if len(items) != 3 {
+			continue
+		}
 		index, err := strconv.Atoi(items[0])
 		if err != nil {
-			klog.Errorf("Failed to convert: %v", err)
-			return 0
+			klog.Errorf("Failed to convert index: %v", err)
+			continue
 		}
-		if items[1] == "cpu" && index >= lastIndex {
+		if items[1] != "cpu" {
+			continue
+		}
+		if index > lastIndex {
+			cpuRequest = 0
+			cpuLimit = 0
+			lastIndex = index
+		}
+		if index == lastIndex {
 			if items[2] == "requests" {
 				cpuRequest = value
 			} else if items[2] == "limits" {
 				cpuLimit = value
-				cpuRequest = value
 			}
-			lastIndex = index
 		}
 	}
-	if cpuLimit >= cpuRequest {
-		return cpuLimit
+	if lastIndex == -1 {
+		return 0, -1
 	}
-	return cpuRequest
+	if cpuLimit >= cpuRequest {
+		return cpuLimit, lastIndex
+	}
+	return cpuRequest, lastIndex
 }
 
 // setResourceValues tweaks the resource requests limits on the workload.
 func (cs CPUScaleActuator) setResourceValues(state *common.State, newValue int) {
 	tmp := strings.Split(state.Intent.TargetKey, "/")
 	namespace := tmp[0]
-
-	// TODO: once is it configurable: if boost factor is misconfigured, display warning and reset to 1.0.
-	factor := boostFactor
 
 	if state.Intent.TargetKind == "Deployment" {
 		client := cs.apps.AppsV1().Deployments(namespace)
@@ -139,11 +146,13 @@ func (cs CPUScaleActuator) setResourceValues(state *common.State, newValue int) 
 			}
 			updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Requests["cpu"] = request
 
-			limit := resource.NewMilliQuantity(int64(float64(newValue)*factor), resource.DecimalSI).DeepCopy()
-			if len(updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits) == 0 {
-				updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+			if cs.cfg.BoostFactor >= 1.0 {
+				limit := resource.NewMilliQuantity(int64(float64(newValue)*cs.cfg.BoostFactor), resource.DecimalSI).DeepCopy()
+				if len(updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits) == 0 {
+					updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+				}
+				updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits["cpu"] = limit
 			}
-			updatedDeployment.Spec.Template.Spec.Containers[len(updatedDeployment.Spec.Template.Spec.Containers)-1].Resources.Limits["cpu"] = limit
 
 			_, updateErr := client.Update(context.TODO(), updatedDeployment, metaV1.UpdateOptions{})
 			return updateErr
@@ -167,11 +176,13 @@ func (cs CPUScaleActuator) setResourceValues(state *common.State, newValue int) 
 			}
 			updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Requests["cpu"] = request
 
-			limit := resource.NewMilliQuantity(int64(float64(newValue)*factor), resource.DecimalSI).DeepCopy()
-			if len(updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits) == 0 {
-				updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+			if cs.cfg.BoostFactor >= 1.0 {
+				limit := resource.NewMilliQuantity(int64(float64(newValue)*cs.cfg.BoostFactor), resource.DecimalSI).DeepCopy()
+				if len(updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits) == 0 {
+					updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits = make(map[v1.ResourceName]resource.Quantity)
+				}
+				updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits["cpu"] = limit
 			}
-			updatedReplicaSet.Spec.Template.Spec.Containers[len(updatedReplicaSet.Spec.Template.Spec.Containers)-1].Resources.Limits["cpu"] = limit
 
 			_, updateErr := client.Update(context.TODO(), updatedReplicaSet, metaV1.UpdateOptions{})
 			return updateErr
@@ -189,57 +200,104 @@ func roundUpCores(n int64, fraction int64) int64 {
 	return b
 }
 
-// findState tries to determine the best possible # of cpus.
-func (cs CPUScaleActuator) findState(
-	state *common.State,
-	goal *common.State,
-	currentCPU int64,
-	profiles map[string]common.Profile) (common.State, int64, error) {
-
-	newState := state.DeepCopy()
-	newCPUValue := int64(0)
-	for k := range state.Intent.Objectives {
-		if profiles[k].ProfileType == common.ProfileTypeFromText("latency") {
-			res, err := cs.tracer.GetEffect(state.Intent.Key, cs.Group(), k, cs.cfg.LookBack, func() interface{} {
+// getScalingEffects return all entries in the knowledgebase for latency related objectives.
+func (cs CPUScaleActuator) getScalingEffects(intent common.Intent, profiles map[string]common.Profile) (map[string]*CPUScaleEffect, error) {
+	result := map[string]*CPUScaleEffect{}
+	for key := range intent.Objectives {
+		if profiles[key].ProfileType == common.ProfileTypeFromText("latency") {
+			res, err := cs.tracer.GetEffect(intent.Key, cs.Group(), key, cs.cfg.LookBack, func() interface{} {
 				return &CPUScaleEffect{}
 			})
 			if res == nil || err != nil {
-				return common.State{}, 0, fmt.Errorf("could not retrieve information from knowledge base for: %s", state.Intent.TargetKey)
+				return nil, fmt.Errorf("could not retrieve information from knowledge base for: %s", key)
 			}
-			if goal.Intent.Objectives[k] < res.(*CPUScaleEffect).Popt[2] {
-				return common.State{}, 0, fmt.Errorf("the model cannot handle this case - aborting for: %s", state.Intent.TargetKey)
+			result[key] = res.(*CPUScaleEffect)
+		}
+	}
+	return result, nil
+}
+
+// findStates tries to determine the best possible state for each latency related objective.
+func (cs CPUScaleActuator) findStates(
+	state *common.State,
+	goal *common.State,
+	currentCPU int64,
+	containerIndex int,
+	profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action, error) {
+	var candidates []common.State
+	var utilities []float64
+	var actions []planner.Action
+
+	// get insights from the knowledge base.
+	effects, err := cs.getScalingEffects(state.Intent, profiles)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("could not retrieve information from knowledge base for: %s", state.Intent.TargetKey)
+	}
+
+	// construct a set of follow-up states.
+	for k := range state.Intent.Objectives {
+		if profiles[k].ProfileType == common.ProfileTypeFromText("latency") {
+			newState := state.DeepCopy()
+			latency := goal.Intent.Objectives[k] * cs.cfg.CPUSafeGuardFactor
+			popts := effects[k].Popts
+			newCPUValue := int64(0)
+			for _, popt := range popts {
+				if goal.Intent.Objectives[k] < popt[2] {
+					klog.Warningf("the model cannot handle this case - aborting for: %s", state.Intent.TargetKey)
+					continue
+				}
+				latency := goal.Intent.Objectives[k] * cs.cfg.CPUSafeGuardFactor
+				newState.Intent.Objectives[k] = latency
+				cpuValue := int64(-(1 / popt[1]) * math.Log((latency-popt[2])/popt[0]) * 1000)
+				if cpuValue > newCPUValue {
+					newCPUValue = roundUpCores(cpuValue, cs.cfg.CPURounding)
+					break
+				}
 			}
-			latency := goal.Intent.Objectives[k] * cs.cfg.CPUSafeGuardFactor // TODO: config file.
-			newState.Intent.Objectives[k] = latency
-			popt := res.(*CPUScaleEffect).Popt
-			cpuValue := int64(-(1 / popt[1]) * math.Log((latency-popt[2])/popt[0]) * 1000)
-			if cpuValue > newCPUValue {
-				newCPUValue = roundUpCores(cpuValue, cs.cfg.CPURounding)
+
+			if newCPUValue != currentCPU && newCPUValue > 0 {
+				// forecast the effect of vertical scaling.
+				for objectiveKey := range effects {
+					newState.Intent.Objectives[objectiveKey] = latency
+				}
+
+				// resources can be nil so need a quick check here.
+				// setting requests equal to limits leads to a guaranteed POD QoS.
+				for name, pod := range newState.CurrentPods {
+					pod.QoSClass = "BestEffort"
+					if cs.cfg.BoostFactor == 1.0 {
+						pod.QoSClass = "Guaranteed"
+					} else if cs.cfg.BoostFactor > 1.0 {
+						pod.QoSClass = "Burstable"
+					}
+					newState.CurrentPods[name] = pod
+				}
+
+				if newState.Resources == nil {
+					newState.Resources = make(map[string]int64)
+				}
+				newState.Resources[strings.Join([]string{strconv.Itoa(containerIndex), "cpu", "requests"}, delimiter)] = newCPUValue
+				if cs.cfg.BoostFactor >= 1.0 {
+					newState.Resources[strings.Join([]string{strconv.Itoa(containerIndex), "cpu", "limits"}, delimiter)] = int64(float64(newCPUValue) * cs.cfg.BoostFactor)
+				}
+				newState.CurrentData[cs.Name()] = map[string]float64{cs.Name(): 1}
+
+				// utility function.
+				utility := float64(newCPUValue) / float64(cs.cfg.CPUMax)
+				if newCPUValue > currentCPU {
+					utility *= 1.0 / goal.Intent.Priority
+				}
+
+				// the associated action.
+				action := planner.Action{Name: cs.Name(), Properties: map[string]int64{"value": newCPUValue}}
+
+				candidates = append(candidates, newState)
+				utilities = append(utilities, utility)
+				actions = append(actions, action)
 			}
 		}
 	}
-	if newState.IsBetter(goal, profiles) && newCPUValue != currentCPU {
-		index := -1
-		for key := range newState.Resources {
-			items := strings.Split(key, delimiter)
-			tmp, err := strconv.Atoi(items[0])
-			if err != nil {
-				klog.Errorf("Failed to convert to int: %v", err)
-			}
-			if tmp > index {
-				index = tmp
-			}
-		}
-		// resources can be nil so need a quick check here.
-		if newState.Resources == nil {
-			newState.Resources = make(map[string]int64)
-		}
-		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "limits"}, delimiter)] = newCPUValue
-		newState.Resources[strings.Join([]string{strconv.Itoa(index), "cpu", "requests"}, delimiter)] = newCPUValue
-		newState.CurrentData[cs.Name()] = map[string]float64{cs.Name(): 1}
-		return newState, newCPUValue, nil
-	}
-	return common.State{}, 0, nil
+	return candidates, utilities, actions, nil
 }
 
 // proactiveScaling adds a state based on hypothetical improvement on the objectives.
@@ -307,26 +365,20 @@ func (cs CPUScaleActuator) NextState(state *common.State, goal *common.State,
 	if len(state.CurrentPods) == 0 {
 		return nil, nil, nil
 	}
-	// let's find a follow-up state.
-	currentValue := getResourceValues(state)
-	newState, newValue, err := cs.findState(state, goal, currentValue, profiles)
-	if newValue != 0 && err == nil {
-		utility := float64(newValue) / float64(cs.cfg.CPUMax)
-		if newValue > currentValue {
-			utility *= 1.0 / goal.Intent.Priority
-		}
-		return []common.State{newState}, []float64{utility}, []planner.Action{
-			{Name: cs.Name(), Properties: map[string]int64{"value": newValue}},
-		}
+	// let's find follow-up states.
+	currentValue, containerIndex := getResourceValues(state)
+	newStates, utilities, actions, err := cs.findStates(state, goal, currentValue, containerIndex, profiles)
+	if err == nil && len(newStates) > 0 {
+		return newStates, utilities, actions
 	}
 	// if the actuator is allowed to proactively scale - let's try that.
-	if cs.cfg.MaxProActiveCPU > 0.0 && err != nil {
+	if cs.cfg.MaxProActiveCPU > 0.0 {
 		// if no state was found or an error is returned, the proactive from NextState is actioned.
 		klog.V(2).Infof("Proactive mode is enabled - will try to do sth for: %s.", state.Intent.TargetKey)
 		proactiveState, proactiveUtility, proactivePlan := cs.proactiveScaling(state, goal, currentValue, profiles)
 		return proactiveState, proactiveUtility, proactivePlan
 	}
-	klog.Warningf("Could not find (better) next state for %s: %v.", state.Intent.TargetKey, err)
+	klog.Warningf("Could not find (better) next state for %s; err was: %v.", state.Intent.TargetKey, err)
 	return nil, nil, nil
 }
 

@@ -1,0 +1,35 @@
+[
+  {
+    "_id": {
+      "$oid": "65db7946094720d66094bfc8"
+    },
+    "name": "default/my-intent",
+    "profileName": "default/p95latency",
+    "group": "vertical_scaling",
+    "data": {
+      "latencyRange": [
+        199.605,
+        1920.0
+      ],
+      "cpuRange": [
+        0.1,
+        2.0
+      ],
+      "popt": [
+        [
+          2283.06568411986,
+          4.712509450970291,
+          239.33831884809487
+        ]
+      ],
+      "trainingFeatures": [
+        "cpus"
+      ],
+      "targetFeature": "default/p95latency"
+    },
+    "timestamp": {
+      "$date": "2024-02-25T18:30:46.890Z"
+    },
+    "static": true
+  }
+]

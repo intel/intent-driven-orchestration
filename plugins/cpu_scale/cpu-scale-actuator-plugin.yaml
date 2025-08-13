@@ -10,6 +10,7 @@ data:
       "cpu_max": 4000,
       "cpu_rounding": 100,
       "cpu_safeguard_factor": 0.95,
+      "boost_factor": 1.0,
       "look_back": 20,
       "max_proactive_cpu": 0,
       "proactive_latency_percentage": 0.1,
@@ -30,7 +31,7 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: cpu-scale-actuator
-      image: 127.0.0.1:5000/cpuscale:0.3.0
+      image: 127.0.0.1:5000/cpuscale:0.4.0
       imagePullPolicy: Always
       args: [ "-config", "/config/defaults.json", "-v", "2" ]
       ports:

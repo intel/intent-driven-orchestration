@@ -27,7 +27,7 @@ type KPIProfileMonitor struct {
 	profileClient   clientSet.Interface
 	profileLister   lister.KPIProfileLister
 	profileSynced   cache.InformerSynced
-	queue           workqueue.RateLimitingInterface
+	queue           workqueue.TypedRateLimitingInterface[string]
 	update          chan<- common.Profile
 	defaultProfiles map[string]map[string]string
 	syncHandler     func(key string) error // Enables us to test this easily.
@@ -51,7 +51,7 @@ func NewKPIProfileMonitor(cfg common.MonitorConfig, profileClient clientSet.Inte
 		profileClient:   profileClient,
 		profileLister:   profileInformer.Lister(),
 		profileSynced:   profileInformer.Informer().HasSynced,
-		queue:           workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{Name: "KPIProfiles"}),
+		queue:           workqueue.NewTypedRateLimitingQueueWithConfig[string](workqueue.DefaultTypedControllerRateLimiter[string](), workqueue.TypedRateLimitingQueueConfig[string]{Name: "KPIProfiles"}),
 		update:          ch,
 		defaultProfiles: result,
 	}
@@ -62,12 +62,12 @@ func NewKPIProfileMonitor(cfg common.MonitorConfig, profileClient clientSet.Inte
 	// handle add, update & delete.
 	_, _ = profileInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: mon.enqueueItem,
-		UpdateFunc: func(oldResource, newResource interface{}) {
-			if oldResource.(*v1alpha1.KPIProfile).ResourceVersion == newResource.(*v1alpha1.KPIProfile).ResourceVersion {
+		UpdateFunc: func(oldVersion, newVersion interface{}) {
+			if oldVersion.(*v1alpha1.KPIProfile).ResourceVersion == newVersion.(*v1alpha1.KPIProfile).ResourceVersion {
 				// no change --> nothing to do.
 				return
 			}
-			mon.enqueueItem(newResource)
+			mon.enqueueItem(newVersion)
 		},
 		DeleteFunc: func(obj interface{}) {
 			var key string
@@ -128,7 +128,7 @@ func (mon *KPIProfileMonitor) processNextWorkItem() bool {
 	defer mon.queue.Done(obj)
 
 	// process obj.
-	err := mon.syncHandler(obj.(string))
+	err := mon.syncHandler(obj)
 	if err == nil {
 		mon.queue.Forget(obj)
 		return true
@@ -146,7 +146,7 @@ func (mon *KPIProfileMonitor) processProfile(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("invalid resource key: '%s'", key))
-		//lint:ignore nilerr n.a.
+		// nolint:nilerr // n.a.
 		return nil // ignore
 	}
 
@@ -163,13 +163,13 @@ func (mon *KPIProfileMonitor) processProfile(key string) error {
 	var parsedProfile common.Profile
 	if _, found := mon.defaultProfiles[key]; found {
 		tmp := mon.defaultProfiles[key]
-		parsedProfile = common.Profile{Key: key, ProfileType: common.ProfileTypeFromText(profile.Spec.KPIType), Query: tmp["query"], Address: tmp["endpoint"]}
+		parsedProfile = common.Profile{Key: key, ProfileType: common.ProfileTypeFromText(profile.Spec.KPIType), Query: tmp["query"], Minimize: profile.Spec.Minimize, Address: tmp["endpoint"]}
 		mon.updateStatus(profile, true, "ok")
 		mon.update <- parsedProfile
 	} else {
 		if _, found := profile.Spec.Props["endpoint"]; found && profile.Spec.Query != "" {
 			// FIXME - make sure whatever is put in query is safe, secure & valid (regex maybe?)
-			parsedProfile = common.Profile{Key: key, ProfileType: common.ProfileTypeFromText(profile.Spec.KPIType), Query: profile.Spec.Query, External: true, Address: profile.Spec.Props["endpoint"]}
+			parsedProfile = common.Profile{Key: key, ProfileType: common.ProfileTypeFromText(profile.Spec.KPIType), Query: profile.Spec.Query, Minimize: profile.Spec.Minimize, External: true, Address: profile.Spec.Props["endpoint"]}
 			mon.updateStatus(profile, true, "ok")
 			mon.update <- parsedProfile
 		} else {

@@ -60,9 +60,9 @@ func setupTestCase() (common.State, common.State, map[string]common.Profile) {
 		},
 	}
 	profiles := map[string]common.Profile{
-		"p99":          {ProfileType: common.ProfileTypeFromText("latency")},
-		"rps":          {ProfileType: common.ProfileTypeFromText("throughput")},
-		"availability": {ProfileType: common.ProfileTypeFromText("availability")},
+		"p99":          {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"rps":          {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false},
+		"availability": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 	return start, goal, profiles
 }

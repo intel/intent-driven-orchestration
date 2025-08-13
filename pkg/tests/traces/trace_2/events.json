@@ -1,0 +1,229 @@
+[
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": -1.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 150.0
+    },
+    "resources": {},
+    "annotations": {},
+    "pods": {
+      "pod_0": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Burstable"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 1.0
+      }
+    },
+    "plan": null
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 200.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0
+    },
+    "resources": {},
+    "annotations": {},
+    "pods": {
+      "pod_0": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "BestEffort"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 1.0
+      }
+    },
+    "plan": [
+      {
+        "name": "scaleCPU",
+        "properties": {
+          "value": 4000
+        }
+      }
+    ]
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 200.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0
+    },
+    "resources": {
+      "0_cpu_requests": 4000,
+      "0_cpu_limits": 4000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_1": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 1.0
+      }
+    },
+    "plan": [
+      {
+        "name": "setPowerProfile",
+        "properties": {
+          "profile": "power.intel.com/balance-performance"
+        }
+      }
+    ]
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 100.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0
+    },
+    "resources": {
+      "0_cpu_requests": 4000,
+      "0_cpu_limits": 4000,
+      "0_power.intel.com/balance-performance_requests": 4000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_2": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 1.0
+      }
+    },
+    "plan": []
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 100.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0
+    },
+    "resources": {
+      "0_cpu_requests": 4000,
+      "0_cpu_limits": 4000,
+      "0_power.intel.com/balance-performance_requests": 4000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_2": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 0.1
+      }
+    },
+    "plan": [
+      {
+        "name": "setPowerProfile",
+        "properties": {
+          "profile": "None"
+        }
+      }
+    ]
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 200.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 100.0
+    },
+    "resources": {
+      "0_cpu_requests": 4000,
+      "0_cpu_limits": 4000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_3": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 0.1
+      }
+    },
+    "plan": []
+  },
+  {
+    "name": "default/my-app-intent",
+    "timestamp": "2023-06-01 12:00:00.000000",
+    "current_objectives": {
+      "default/p99latency": 200.0
+    },
+    "desired_objectives": {
+      "default/p99latency": 175.0
+    },
+    "resources": {
+      "0_cpu_requests": 4000,
+      "0_cpu_limits": 4000
+    },
+    "annotations": {},
+    "pods": {
+      "pod_3": {
+        "availability": 1.0,
+        "nodename": "node01",
+        "state": "Running",
+        "qosclass": "Guaranteed"
+      }
+    },
+    "data": {
+      "renewable_energy_ratio": {
+        "node01": 0.8
+      }
+    },
+    "plan": [
+      {
+        "name": "setPowerProfile",
+        "properties": {
+          "profile": "power.intel.com/balance-power"
+        }
+      }
+    ]
+  }
+]

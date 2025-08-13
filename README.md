@@ -1,5 +1,4 @@
 
-
 # Intent Driven Orchestration Planner
 
 ![planner.png](planner.png)

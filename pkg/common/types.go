@@ -47,17 +47,20 @@ type Profile struct {
 	Key         string
 	ProfileType ProfileType
 	Query       string
+	Minimize    bool
 	External    bool
 	Address     string
 }
 
 // Intent holds information about an intent in the system.
 type Intent struct {
-	Key        string
-	Priority   float64
-	TargetKey  string
-	TargetKind string
-	Objectives map[string]float64
+	Key             string
+	Priority        float64
+	TargetKey       string
+	TargetKind      string
+	ActivelyManaged bool
+	Objectives      map[string]float64
+	Tolerations     map[string]float64
 }
 
 // PodState represents the state of an POD.
@@ -86,6 +89,7 @@ func (one *State) DeepCopy() State {
 		TargetKey:  one.Intent.TargetKey,
 		TargetKind: one.Intent.TargetKind,
 		Objectives: map[string]float64{},
+		// omitting activelyManaged and tolerations on purpose to save some data; only needed for goal state anyhow.
 	}
 	for k, v := range one.Intent.Objectives {
 		objective.Objectives[k] = v
@@ -153,15 +157,14 @@ func (one *State) Distance(another *State, profiles map[string]Profile) float64 
 	return math.Sqrt(squaresSum)
 }
 
-// IsBetter compares the objectives of one state to another - returns true if all latency or power related objective targets are smaller or equal, and all others are larger or equal.
+// IsBetter compares the objectives of one state to another - returns true if all objectives that need to be minimized are smaller or equal, and all others are larger or equal.
 func (one *State) IsBetter(another *State, profiles map[string]Profile) bool {
 	if len(one.Intent.Objectives) != len(another.Intent.Objectives) {
 		return false
 	}
 	res := false
 	for k, v := range one.Intent.Objectives {
-		// TODO: make this configurable through the KPI profiles for which we define larger or smaller is better.
-		if profiles[k].ProfileType == ProfileTypeFromText("latency") || profiles[k].ProfileType == ProfileTypeFromText("power") {
+		if profiles[k].Minimize {
 			if v <= another.Intent.Objectives[k] {
 				res = true
 			} else {
