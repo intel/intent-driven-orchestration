@@ -205,8 +205,8 @@ func TestGetCurrentStateForSanity(t *testing.T) {
 		"my-deployment-0": {{Start: start, End: end, Created: created}},
 	}
 	profiles := map[string]common.Profile{
-		"default/p99latency":   {Query: "", ProfileType: common.ProfileTypeFromText("latency")},
-		"default/availability": {Query: "", ProfileType: common.ProfileTypeFromText("availability")},
+		"default/p99latency":   {Query: "", ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/availability": {Query: "", ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 	state := getCurrentState(cfg, client, informer, objective, errors, profiles)
 	if state.CurrentPods["my-deployment-0"].Availability != state.Intent.Objectives["default/availability"] || state.Intent.Objectives["availability"] == 1.0 {

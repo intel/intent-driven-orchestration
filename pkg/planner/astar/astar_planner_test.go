@@ -468,7 +468,7 @@ func TestCreatePlanForSuccess(_ *testing.T) {
 		CurrentData: nil,
 	}
 
-	profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	aPlanner := f.newTestPlanner(false)
 	defer aPlanner.Stop()
 	aPlanner.CreatePlan(start, goal, profiles)
@@ -500,7 +500,7 @@ func TestTriggerEffectForSuccess(_ *testing.T) {
 		TargetKind: "",
 		Objectives: map[string]float64{"p99": 100},
 	}}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	aPlanner := f.newTestPlanner(false)
 	defer aPlanner.Stop()
 	aPlanner.TriggerEffect(state, profiles)
@@ -589,7 +589,7 @@ func TestCreatePlanForSanity(t *testing.T) {
 				CurrentPods: nil,
 				CurrentData: nil,
 			}
-			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 			testCase.planner = testCase.plannerCrt(testCase.fixture)
 			testCase.stubs = testCase.stubsCrt(testCase.fixture)
 			res := testCase.planner.CreatePlan(start, goal, profiles)
@@ -657,7 +657,7 @@ func TestShortCutForSanity(t *testing.T) {
 				CurrentPods: nil,
 				CurrentData: nil,
 			}
-			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 			testCase.planner = testCase.plannerCrt(testCase.fixture)
 			testCase.stubs = testCase.stubsCrt(testCase.fixture)
 			res := testCase.planner.CreatePlan(start, goal, profiles)
@@ -701,7 +701,7 @@ func TestOpportunisticPlannerForSanity(t *testing.T) {
 				CurrentPods: nil,
 				CurrentData: nil,
 			}
-			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+			profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 			testCase.planner = testCase.plannerCrt(testCase.fixture)
 			testCase.stubs = testCase.stubsCrt(testCase.fixture)
 			res := testCase.planner.CreatePlan(start, goal, profiles)
@@ -735,7 +735,7 @@ func TestFaultyActuatorForSanity(t *testing.T) {
 	start := common.State{}
 	goal := common.State{}
 
-	profiles := map[string]common.Profile{"p72.5": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p72.5": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	res := aPlanner.CreatePlan(start, goal, profiles)
 	if len(res) != 0 {
 		t.Errorf("Plan should be empty.")
@@ -771,7 +771,7 @@ func TestFaultyActuatorOverGrpcForSanity(t *testing.T) {
 	start := common.State{}
 	goal := common.State{}
 
-	profiles := map[string]common.Profile{"p72.5": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p72.5": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	res := aPlanner.CreatePlan(start, goal, profiles)
 	if len(res) != 0 {
 		t.Errorf("Plan should be empty.")
@@ -817,7 +817,7 @@ func BenchmarkCreatePlan(b *testing.B) {
 		CurrentPods: nil,
 		CurrentData: nil,
 	}
-	profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99latency": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 
 	plnr := f.newTestPlanner(false)
 	defer plnr.Stop()

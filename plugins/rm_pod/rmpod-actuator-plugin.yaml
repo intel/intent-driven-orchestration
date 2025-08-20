@@ -24,7 +24,8 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: rmpod-actuator
-      image: 127.0.0.1:5000/rmpod:0.3.0
+      image: 127.0.0.1:5000/rmpod:0.4.0
+      imagePullPolicy: Always
       args: [ "-config", "/config/defaults.json" ]
       ports:
         - containerPort: 33334

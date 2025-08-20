@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: energy-configmap
+data:
+  defaults.json: |-
+    {
+      "interpreter": "python3",
+      "analytics": "/plugins/pkg/planner/actuators/energy/analytics.py",
+      "prediction": "/plugins/pkg/planner/actuators/energy/predict.py",
+      "options": ["None", "power.intel.com/balance-power1", "power.intel.com/balance-performance1", "power.intel.com/performance1"],
+      "add_proactive_candidates": false,
+      "renewable_limit": 0.75,
+      "step_down": 2,
+      "endpoint": "energy-actuator-service",
+      "port": 33334,
+      "mongo_endpoint": "mongodb://planner-mongodb-service:27017/",
+      "plugin_manager_endpoint": "plugin-manager-service",
+      "plugin_manager_port": 33333
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: energy-actuator
+  labels:
+    name: energy-actuator
+spec:
+  serviceAccountName: planner-service-account
+  containers:
+    - name: energy-actuator
+      image: 127.0.0.1:5000/energy:0.4.0
+      imagePullPolicy: Always
+      args: [ "-config", "/config/defaults.json" ]
+      ports:
+        - containerPort: 33334
+      securityContext:
+        capabilities:
+          drop: [ 'ALL' ]
+        seccompProfile:
+          type: RuntimeDefault
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+      resources:
+        limits:
+          memory: "1024Mi"
+          cpu: "2000m"
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+      volumeMounts:
+        - name: matplotlib-tmp
+          mountPath: /var/tmp
+        - name: energy-configmap-volume
+          mountPath: /config/
+      env:
+        # Needed for the analytics python script.
+        - name: MONGO_URL
+          value: "mongodb://planner-mongodb-service:27017/"
+        - name: MPLCONFIGDIR
+          value: /var/tmp
+  volumes:
+    - name: matplotlib-tmp
+      emptyDir:
+        sizeLimit: 100Mi
+    - name: energy-configmap-volume
+      configMap:
+        name: energy-configmap
+        items:
+          - key: defaults.json
+            path: defaults.json
+  tolerations:
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: energy-actuator-service
+spec:
+  clusterIP: None
+  selector:
+    name: energy-actuator
+  ports:
+    - protocol: TCP
+      port: 33334
+      targetPort: 33334

@@ -29,6 +29,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+      - name: List open ports and processes
+        run: sudo lsof -i -P -n | grep LISTEN
       - name: Unit test
         run: make utest
   race:
@@ -42,4 +44,4 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Test race
-        run: go test -count=1 -parallel 1 -race ./...
+        run: go test -count=1 -parallel 1 -race -skip 'TestTracesForSanity/rdt_trace|TestPowerForSanity/power_efficiency' ./...

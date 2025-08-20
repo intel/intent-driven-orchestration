@@ -128,6 +128,7 @@ func (pm *PluginManagerServer) Start() error {
 	var lastDialErr error
 	err = wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(_ context.Context) (bool, error) { // TODO: make configurable.
 		var conn *grpc.ClientConn
+		// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 		conn, lastDialErr = grpc.Dial(fmt.Sprintf("localhost:%d", pm.port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if lastDialErr != nil {
 			// nolint:nilerr

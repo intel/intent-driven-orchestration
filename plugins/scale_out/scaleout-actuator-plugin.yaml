@@ -28,7 +28,8 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: scaleout-actuator
-      image: 127.0.0.1:5000/scaleout:0.3.0
+      image: 127.0.0.1:5000/scaleout:0.4.0
+      imagePullPolicy: Always
       args: [ "-config", "/config/defaults.json" ]
       ports:
         - containerPort: 33334

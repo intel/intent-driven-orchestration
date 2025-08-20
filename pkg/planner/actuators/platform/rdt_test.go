@@ -1,13 +1,12 @@
 package platform
 
 import (
-	"os/exec"
 	"testing"
-	"time"
 
 	"github.com/intel/intent-driven-orchestration/pkg/common"
 	"github.com/intel/intent-driven-orchestration/pkg/planner"
 
+	appsV1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,21 +42,20 @@ func (f *rdtActuatorFixture) newRdtTestActuator() *RdtActuator {
 	f.client = fake.NewSimpleClientset(f.objects...)
 	cfg := RdtConfig{
 		Interpreter: "python3",
-		Analytics:   "test_analyze.py",
-		Prediction:  "test_predict.py",
+		Analytics:   "analytics/test_analyze.py",
+		Prediction:  "analytics/test_predict.py",
 		Options:     []string{"None", "option_a", "option_b", "option_c"},
 	}
 	actuator := NewRdtActuator(f.client, dummyTracer{}, cfg)
-
-	cmd := exec.Command(actuator.config.Interpreter, actuator.config.Prediction) //#nosec G204 -- NA
-	err := cmd.Start()
-	if err != nil {
-		klog.Errorf("Could not start the prediction script: %s.", err)
-	}
-	// looks like we need this on slower boxes...
-	time.Sleep(500 * time.Millisecond)
-
 	return actuator
+}
+
+func (f *rdtActuatorFixture) cleanUp(actuator *RdtActuator) {
+	klog.Infof("Going to kill process with PID: %d.", actuator.Cmd.Process.Pid)
+	err := actuator.Cmd.Process.Kill()
+	if err != nil {
+		klog.Fatalf("Could not terminate prediction service: %s", err)
+	}
 }
 
 // Tests for success.
@@ -66,15 +64,10 @@ func (f *rdtActuatorFixture) newRdtTestActuator() *RdtActuator {
 func TestRdtNextStateForSuccess(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/function-intents",
 			Priority:   1.0,
 			TargetKey:  "default/my-function",
@@ -106,6 +99,7 @@ func TestRdtPerformForSuccess(_ *testing.T) {
 		},
 	}
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	state := common.State{
 		Intent:      common.Intent{TargetKey: "default/my-function", TargetKind: "Deployment"},
 		CurrentPods: map[string]common.PodState{"pod_0": {}},
@@ -118,6 +112,7 @@ func TestRdtPerformForSuccess(_ *testing.T) {
 func TestRdtEffectForSuccess(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	state := common.State{
 		Intent: common.Intent{
 			TargetKey:  "default/my-function",
@@ -142,9 +137,11 @@ func TestRdtPerformForFailure(t *testing.T) {
 	f := newRdtActuatorFixture()
 	f.objects = []runtime.Object{}
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	state := common.State{
 		Intent: common.Intent{
-			TargetKey: "default/my-function",
+			TargetKey:  "default/my-function",
+			TargetKind: "Deployment",
 		},
 		CurrentPods: map[string]common.PodState{
 			"pod_0": {},
@@ -159,6 +156,14 @@ func TestRdtPerformForFailure(t *testing.T) {
 	if len(f.client.Actions()) != 1 {
 		t.Errorf("This is not expected: %v", f.client.Actions())
 	}
+
+	// test same for replicaset
+	f.client.ClearActions()
+	state.Intent.TargetKind = "ReplicaSet"
+	actuator.Perform(&state, plan)
+	if len(f.client.Actions()) != 1 {
+		t.Errorf("This is not expected: %v", f.client.Actions())
+	}
 }
 
 // TestRdtEffectForFailure tests for failure.
@@ -166,13 +171,7 @@ func TestRdtEffectForFailure(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	// not much to do here, as this will "just" trigger a python script.
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -186,6 +185,7 @@ func TestRdtEffectForFailure(_ *testing.T) {
 		"p99": {ProfileType: common.ProfileTypeFromText("latency")},
 	}
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	actuator.config.Analytics = "foobar"
 	// will cause a logging warning.
 	actuator.Effect(&state, profiles)
@@ -193,19 +193,56 @@ func TestRdtEffectForFailure(_ *testing.T) {
 
 // Tests for sanity.
 
+func TestGetResourcesForSanity(t *testing.T) {
+	var tests = []struct {
+		name   string
+		input  map[string]int64
+		output int64
+	}{
+		{
+			name:   "should_work",
+			input:  map[string]int64{"0_cpu_limits": 1000},
+			output: 1000,
+		},
+		{
+			name:   "only_requests",
+			input:  map[string]int64{"0_cpu_requests": 1000},
+			output: 0,
+		},
+		{
+			name:   "multiple_containers",
+			input:  map[string]int64{"1_cpu_limits": 1000, "2_cpu_limits": 2000, "0_cpu_limits": 500},
+			output: 2000,
+		},
+		{
+			name:   "no_cpu_info",
+			input:  map[string]int64{"0_gpu_limits": 1},
+			output: 0,
+		},
+		{
+			name:   "faulty format",
+			input:  map[string]int64{"a_b_c": 1},
+			output: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val := getResources(tt.input)
+			if val != tt.output {
+				t.Errorf("Expected %d - got %d for test %s.", tt.output, val, tt.name)
+			}
+		})
+	}
+}
+
 // TestRdtNextStateForSanity tests for sanity.
 func TestRdtNextStateForSanity(t *testing.T) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/function-intents",
 			Priority:   1.0,
 			TargetKey:  "default/my-function",
@@ -216,7 +253,9 @@ func TestRdtNextStateForSanity(t *testing.T) {
 			},
 		},
 		CurrentPods: map[string]common.PodState{
-			"pod_0": {},
+			"pod_0": {
+				QoSClass: "Guaranteed",
+			},
 		},
 		CurrentData: map[string]map[string]float64{
 			"cpu_value": {"node": 10.0},
@@ -230,8 +269,9 @@ func TestRdtNextStateForSanity(t *testing.T) {
 		"default/blurb": 10.0,
 	}
 	profiles := map[string]common.Profile{
-		"default/p99":   {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/blurb": {ProfileType: common.ProfileTypeFromText("availability")},
+		"default/p95":   {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/p99":   {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/blurb": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 
 	states, utils, actions := actuator.NextState(&state, &goal, profiles)
@@ -242,7 +282,7 @@ func TestRdtNextStateForSanity(t *testing.T) {
 	if _, found := states[0].Annotations["rdtVisited"]; !found {
 		t.Errorf("Expected the temp blocker in annotation:  %v.", states[0].Annotations)
 	}
-	// check if resulting action match.
+	// check if the resulting action matches.
 	if actions[0].Name != actuator.Name() || actions[0].Properties.(map[string]string)["option"] != "option_b" {
 		t.Errorf("Expected a action to set option_b - got: %v.", actions[0])
 	}
@@ -259,6 +299,7 @@ func TestRdtNextStateForSanity(t *testing.T) {
 	}
 
 	// expect empty res if we are good for now.
+	state.Annotations[actuator.config.AnnotationName] = "option_b"
 	state.Intent.Objectives["default/p99"] = 4.9
 	goal.Intent.Objectives["default/p99"] = 5.0
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
@@ -286,15 +327,45 @@ func TestRdtNextStateForSanity(t *testing.T) {
 	}
 
 	// we do not expect to set an option if it is already set...
-	state.Annotations["configureRDT"] = "option_a"
-	delete(state.Annotations, "rdt_visited")
+	state.Annotations[actuator.config.AnnotationName] = "option_a"
+	delete(state.Annotations, "rdtVisited")
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
 	if len(actions) != 0 {
 		t.Errorf("Expected no actions - got: %v.", actions)
 	}
 
-	// expect empty is script return -1.0
+	// expect empty result if script return -1.0
+	delete(state.Annotations, "rdtVisited")
+	delete(state.Annotations, actuator.config.AnnotationName)
+	delete(state.Intent.Objectives, "default/p99")
+	delete(goal.Intent.Objectives, "default/p99")
 	state.Intent.Objectives["default/p72"] = 10.0
+	goal.Intent.Objectives["default/p72"] = 3.0
+	_, _, actions = actuator.NextState(&state, &goal, profiles)
+	if len(actions) != 0 {
+		t.Errorf("Expected no actions - got: %v.", actions)
+	}
+
+	// check if we have multiple results when we have multiple targeted objectives.
+	delete(state.Intent.Objectives, "default/p72")
+	delete(state.Annotations, "rdtVisited")
+	delete(state.Annotations, actuator.config.AnnotationName)
+	state.Intent.Objectives["default/p99"] = 20
+	state.Intent.Objectives["default/p95"] = 15
+	goal.Intent.Objectives["default/p99"] = 5.0
+	goal.Intent.Objectives["default/p95"] = 7.5
+	_, _, actions = actuator.NextState(&state, &goal, profiles)
+	if len(actions) != 2 {
+		t.Errorf("Expected 2 actions - got: %v.", actions)
+	}
+
+	// POD not in guaranteed class.
+	delete(state.Annotations, "rdtVisited")
+	delete(state.Intent.Objectives, "default/p72")
+	delete(state.CurrentPods, "pod_0")
+	state.CurrentPods["pod_1"] = common.PodState{
+		QoSClass: "Burstable",
+	}
 	_, _, actions = actuator.NextState(&state, &goal, profiles)
 	if len(actions) != 0 {
 		t.Errorf("Expected no actions - got: %v.", actions)
@@ -307,15 +378,10 @@ func TestRdtNextStateForSanity(t *testing.T) {
 func BenchmarkNextState(b *testing.B) {
 	f := newRdtActuatorFixture()
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/function-intents",
 			Priority:   1.0,
 			TargetKey:  "default/my-function",
@@ -326,7 +392,9 @@ func BenchmarkNextState(b *testing.B) {
 			},
 		},
 		CurrentPods: map[string]common.PodState{
-			"pod_0": {},
+			"pod_0": {
+				QoSClass: "Guaranteed",
+			},
 		},
 		CurrentData: map[string]map[string]float64{
 			"cpu_value": {"node": 10.0},
@@ -340,8 +408,8 @@ func BenchmarkNextState(b *testing.B) {
 		"default/blurb": 10.0,
 	}
 	profiles := map[string]common.Profile{
-		"default/p99":   {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/blurb": {ProfileType: common.ProfileTypeFromText("availability")},
+		"default/p99":   {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/blurb": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 
 	b.ResetTimer()
@@ -363,11 +431,25 @@ func TestRdtPerformForSanity(t *testing.T) {
 				Namespace: "default",
 			},
 		},
+		&appsV1.Deployment{
+			ObjectMeta: metaV1.ObjectMeta{
+				Name:      "my-function",
+				Namespace: "default",
+			},
+		},
+		&appsV1.ReplicaSet{
+			ObjectMeta: metaV1.ObjectMeta{
+				Name:      "my-function",
+				Namespace: "default",
+			},
+		},
 	}
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	state := common.State{
 		Intent: common.Intent{
-			TargetKey: "default/my-function",
+			TargetKey:  "default/my-function",
+			TargetKind: "Deployment",
 		},
 		CurrentPods: map[string]common.PodState{
 			"pod_0": {},
@@ -410,6 +492,43 @@ func TestRdtPerformForSanity(t *testing.T) {
 	if j != len(expectedActions) {
 		t.Errorf("Expected more actions: %v - found only: %d.", expectedActions, j)
 	}
+
+	// check if actions are also called for replicaset.
+	f.client.ClearActions()
+	state.Intent.TargetKind = "ReplicaSet"
+	plan = []planner.Action{
+		{Name: rdtActionName, Properties: map[string]string{"option": "option_a"}},
+	}
+	actuator.Perform(&state, plan)
+	expectedActions = []string{"get", "update"}
+	j = 0
+	for i, action := range f.client.Actions() {
+		if action.GetVerb() != expectedActions[i] {
+			t.Errorf("Expected %s - got %s.", expectedActions[i], action)
+		}
+		j++
+	}
+	if j != len(expectedActions) {
+		t.Errorf("Expected more actions: %v - found only: %d.", expectedActions, j)
+	}
+
+	// check if annotation is removed if option is None:
+	f.client.ClearActions()
+	plan = []planner.Action{
+		{Name: rdtActionName, Properties: map[string]string{"option": "None"}},
+	}
+	actuator.Perform(&state, plan)
+	expectedActions = []string{"get", "update"}
+	j = 0
+	for i, action := range f.client.Actions() {
+		if action.GetVerb() != expectedActions[i] {
+			t.Errorf("Expected %s - got %s.", expectedActions[i], action)
+		}
+		j++
+	}
+	if j != len(expectedActions) {
+		t.Errorf("Expected more actions: %v - found only: %d.", expectedActions, j)
+	}
 }
 
 // TestRdtEffectForSanity tests for sanity.
@@ -417,13 +536,7 @@ func TestRdtEffectForSanity(_ *testing.T) {
 	f := newRdtActuatorFixture()
 	// not much to do here, as this will "just" trigger a python script.
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -435,10 +548,11 @@ func TestRdtEffectForSanity(_ *testing.T) {
 		},
 	}
 	profiles := map[string]common.Profile{
-		"p99":   {ProfileType: common.ProfileTypeFromText("latency")},
-		"avail": {ProfileType: common.ProfileTypeFromText("availability")},
+		"p99":   {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"avail": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 	actuator := f.newRdtTestActuator()
+	defer f.cleanUp(actuator)
 	// will cause a logging warning.
 	actuator.Effect(&state, profiles)
 }

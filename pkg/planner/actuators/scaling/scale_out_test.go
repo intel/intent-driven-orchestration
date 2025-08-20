@@ -64,16 +64,10 @@ func (f *scaleOutActuatorFixture) newScaleOutTestActuator() *ScaleOutActuator {
 func TestScaleNextStateForSuccess(t *testing.T) {
 	f := newScaleOutActuatorFixture(t)
 	actuator := f.newScaleOutTestActuator()
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0}}}
+	state := common.State{Intent: common.Intent{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0}}}
 	goal := common.State{}
 	goal.Intent.Objectives = map[string]float64{"p99": 10.0}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	actuator.NextState(&state, &goal, profiles)
 }
 
@@ -103,14 +97,8 @@ func TestScalePerformForSuccess(t *testing.T) {
 // TestScaleEffectForSuccess tests for success.
 func TestScaleEffectForSuccess(t *testing.T) {
 	f := newScaleOutActuatorFixture(t)
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0, "throughput": 10}}}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}, "throughput": {ProfileType: common.ProfileTypeFromText("throughput")}}
+	state := common.State{Intent: common.Intent{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0, "throughput": 10}}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}, "throughput": {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false}}
 	actuator := f.newScaleOutTestActuator()
 	actuator.Effect(&state, profiles)
 }
@@ -123,13 +111,7 @@ func TestScaleNextStateForFailure(t *testing.T) {
 	actuator := f.newScaleOutTestActuator()
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -143,7 +125,7 @@ func TestScaleNextStateForFailure(t *testing.T) {
 	goal := common.State{}
 	goal.Intent.Objectives = map[string]float64{"default/p99": 3.0, "default/rps": 0.0, "default/availability": 0.999}
 	profiles := map[string]common.Profile{
-		"default/p99": {ProfileType: common.ProfileTypeFromText("latency")},
+		"default/p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
 	}
 
 	// no throughput is being tracked.
@@ -201,14 +183,8 @@ func TestScalePerformForFailure(t *testing.T) {
 func TestScaleEffectForFailure(t *testing.T) {
 	f := newScaleOutActuatorFixture(t)
 	actuator := f.newScaleOutTestActuator()
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0, "throughput": 10}}}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}, "throughput": {ProfileType: common.ProfileTypeFromText("throughput")}}
+	state := common.State{Intent: common.Intent{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0, "throughput": 10}}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}, "throughput": {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false}}
 
 	actuator.cfg.Script = "abc.xyz"
 	actuator.Effect(&state, profiles)
@@ -222,13 +198,7 @@ func TestScaleNextStateForSanity(t *testing.T) {
 	actuator := f.newScaleOutTestActuator()
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -243,21 +213,29 @@ func TestScaleNextStateForSanity(t *testing.T) {
 	goal.Intent.Priority = 1.0
 	goal.Intent.Objectives = map[string]float64{"default/p99": 3.0, "default/rps": 0.0, "default/availability": 0.999}
 	profiles := map[string]common.Profile{
-		"default/p99":          {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/rps":          {ProfileType: common.ProfileTypeFromText("throughput")},
-		"default/availability": {ProfileType: common.ProfileTypeFromText("availability")},
+		"default/p99":          {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/rps":          {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false},
+		"default/availability": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 
 	states, utilities, actions := actuator.NextState(&state, &goal, profiles)
-	if len(states) < 1 || len(utilities) < 1 || len(actions) < 1 {
-		t.Errorf("Resultsets are empty: %v, %v, %v.", states, utilities, actions)
+	if len(states) != 2 || len(utilities) != 2 || len(actions) != 2 {
+		t.Errorf("Resultsets do not exactly contain 2 entries: %v, %v, %v.", states, utilities, actions)
 	}
-	// check if results match for scale-out
-	if len(states[0].CurrentPods) != 3 || actions[0].Name != actuator.Name() || actions[0].Properties.(map[string]int64)["factor"] != 2 {
-		t.Errorf("Expected a scale out by factor of 2 - got: %v.", actions[0])
+	solutions := 0
+	for i, item := range actions {
+		if item.Properties.(map[string]int64)["factor"] == 2 {
+			// to achieve p99 & availability goal.
+			if utilities[i] < 0.95 {
+				solutions++
+			}
+		} else if item.Properties.(map[string]int64)["factor"] == 1 {
+			// to achieve availability goal.
+			solutions++
+		}
 	}
-	if utilities[0] > 0.95 {
-		t.Errorf("Expected utility to be < 1.0 - got: %v.", utilities)
+	if solutions != 2 {
+		t.Errorf("Sth went wrong expected 2 actions: %v.", actions)
 	}
 
 	// empty results if no solution can be found.
@@ -358,14 +336,8 @@ func TestScalePerformForSanity(t *testing.T) {
 func TestScaleEffectForSanity(t *testing.T) {
 	f := newScaleOutActuatorFixture(t)
 	// not much to do here, as this will "just" trigger a python script.
-	state := common.State{Intent: struct {
-		Key        string
-		Priority   float64
-		TargetKey  string
-		TargetKind string
-		Objectives map[string]float64
-	}{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0}}}
-	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency")}}
+	state := common.State{Intent: common.Intent{Key: "default/my-objective", Priority: 1.0, TargetKey: "default/my-deployment", TargetKind: "Deployment", Objectives: map[string]float64{"p99": 20.0}}}
+	profiles := map[string]common.Profile{"p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true}}
 	actuator := f.newScaleOutTestActuator()
 	// will cause a logging warning.
 	actuator.Effect(&state, profiles)

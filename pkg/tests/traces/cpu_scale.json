@@ -4,5 +4,6 @@
   "cpu_max": 4000,
   "cpu_rounding": 100,
   "cpu_safeguard_factor": 0.95,
+  "boost_factor": 1.0,
   "max_proactive_cpu": 0
 }

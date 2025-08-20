@@ -154,7 +154,7 @@ func (f *profileFixture) testSyncHandler(key string) {
 }
 
 // newKPIProfile creates a dummy KPIProfile.
-func newKPIProfile(name string, kind string, query string, endpoint string) *v1alpha1.KPIProfile {
+func newKPIProfile(name string, kind string, query string, smaller bool, endpoint string) *v1alpha1.KPIProfile {
 	return &v1alpha1.KPIProfile{
 		TypeMeta: metaV1.TypeMeta{APIVersion: v1alpha1.SchemeGroupVersion.String()},
 		ObjectMeta: metaV1.ObjectMeta{
@@ -162,9 +162,10 @@ func newKPIProfile(name string, kind string, query string, endpoint string) *v1a
 			Namespace: metaV1.NamespaceDefault,
 		},
 		Spec: v1alpha1.KPIProfileSpec{
-			Query:   query,
-			KPIType: kind,
-			Props:   map[string]string{"endpoint": endpoint},
+			Query:    query,
+			KPIType:  kind,
+			Minimize: smaller,
+			Props:    map[string]string{"endpoint": endpoint},
 		},
 	}
 }
@@ -175,7 +176,7 @@ func newKPIProfile(name string, kind string, query string, endpoint string) *v1a
 func TestRunKPIProfileMonitorForSuccess(t *testing.T) {
 	f := newProfileFixture(t)
 
-	foo := newKPIProfile("foo", "", "", "")
+	foo := newKPIProfile("foo", "", "", true, "")
 	f.profileLister = append(f.profileLister, foo)
 	f.objects = append(f.objects, foo)
 
@@ -197,7 +198,7 @@ func TestProcessProfileForSuccess(t *testing.T) {
 	f := newProfileFixture(t)
 
 	// new objective profile.
-	newProfile := newKPIProfile("availability", "availability", "", "")
+	newProfile := newKPIProfile("availability", "availability", "", true, "")
 	f.profileLister = append(f.profileLister, newProfile)
 	f.objects = append(f.objects, newProfile)
 
@@ -225,7 +226,7 @@ func TestRunKPIProfileMonitorForFailure(t *testing.T) {
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
 
-	newProfile := newKPIProfile("availability", "availability", "", "")
+	newProfile := newKPIProfile("availability", "availability", "", true, "")
 
 	// syncHandler bails out.
 	mon, faker := f.newMonitor(stopChannel)
@@ -265,7 +266,7 @@ func TestRunKPIProfileMonitorForSanity(t *testing.T) {
 		return nil
 	}
 
-	profile := newKPIProfile("p50latency", "latency", "", "")
+	profile := newKPIProfile("p50latency", "latency", "", true, "")
 	go mon.Run(1, stopChannel)
 	faker.Add(profile)
 	updateProfile := profile.DeepCopy()
@@ -286,7 +287,7 @@ func TestProcessProfileForSanity(t *testing.T) {
 	f := newProfileFixture(t)
 
 	// new objective profile.
-	newProfile := newKPIProfile("my-fps", "throughput", "abc", "https://foo:8080")
+	newProfile := newKPIProfile("my-fps", "throughput", "abc", true, "https://foo:8080")
 	f.profileLister = append(f.profileLister, newProfile)
 	f.objects = append(f.objects, newProfile)
 
@@ -306,7 +307,7 @@ func TestProcessProfileForSanity(t *testing.T) {
 
 	// now let's add an invalid objective profile...
 	f = newProfileFixture(t)
-	secondProfile := newKPIProfile("my-lat", "latency", "", "")
+	secondProfile := newKPIProfile("my-lat", "latency", "", true, "")
 	f.profileLister = append(f.profileLister, secondProfile)
 	f.objects = append(f.objects, secondProfile)
 	action = core.NewUpdateSubresourceAction(

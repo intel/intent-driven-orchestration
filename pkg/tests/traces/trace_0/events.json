@@ -84,7 +84,7 @@
         "qosclass": "Guaranteed"
       }
     },
-    "data": {},
+    "data": [],
     "plan": [
       {
         "name": "scaleCPU",

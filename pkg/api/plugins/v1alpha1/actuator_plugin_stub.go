@@ -102,6 +102,7 @@ func (s *ActuatorPluginStub) Start() error {
 	// TODO: make configurable.
 	err = wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(_ context.Context) (bool, error) {
 		var conn *grpc.ClientConn
+		// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 		conn, lastDialErr = grpc.Dial(fmt.Sprintf("%s:%d", s.endpoint, s.port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if lastDialErr != nil {
 			// nolint:nilerr
@@ -146,6 +147,7 @@ func (s *ActuatorPluginStub) Register() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO: make configurable.
 	defer cancel()
+	// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 	conn, err := grpc.DialContext(ctx, fmt.Sprintf("%s:%d", s.pluginManagerEndpoint, s.pluginManagerPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		klog.ErrorS(err, "Cannot establish a connection to the plugin manager.")
@@ -153,6 +155,7 @@ func (s *ActuatorPluginStub) Register() error {
 	retries := s.retries
 	for retries > 0 && err != nil && (conn == nil || conn.GetState() != connectivity.Ready) {
 		time.Sleep(5 * time.Second) // TODO: make configurable.
+		// nolint:staticcheck // SA1019: grpc.Dial is deprecated — but supported in 1.0; for GRPC 2.0 we'll need to check if the connection is ready.
 		conn, err = grpc.DialContext(ctx, fmt.Sprintf("%s:%d", s.pluginManagerEndpoint, s.pluginManagerPort), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
 			klog.ErrorS(err, "Cannot establish connection to the plugin manager.")
@@ -237,6 +240,7 @@ func toProfiles(profiles map[string]*protobufs.Profile) map[string]common.Profil
 		r[k] = common.Profile{
 			Key:         v.Key,
 			ProfileType: common.ProfileTypeFromText(v.ProfileType.String()),
+			Minimize:    v.Minimize,
 		}
 	}
 	return r

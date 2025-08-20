@@ -7,6 +7,9 @@ import (
 	"os"
 	goRuntime "runtime"
 
+	"path/filepath"
+	"strings"
+
 	"k8s.io/klog/v2"
 )
 
@@ -21,6 +24,7 @@ type Config struct {
 // GenericConfig captures generic configuration fields.
 type GenericConfig struct {
 	MongoEndpoint string `json:"mongo_endpoint"`
+	LogFile       string `json:"log_file"`
 }
 
 // ControllerConfig holds controller related configs.
@@ -105,6 +109,13 @@ func ParseConfig(filename string) (Config, error) {
 	}
 	result := tmp.(*Config)
 
+	if result.Generic.LogFile != "" {
+		tmp, err := sanitizePath(result.Generic.LogFile)
+		if err != nil {
+			return *result, fmt.Errorf("invalid log file path: %v", err)
+		}
+		result.Generic.LogFile = tmp
+	}
 	if result.Controller.TaskChannelLength <= 0 ||
 		result.Controller.TaskChannelLength > MaxTaskChannelLen ||
 		result.Controller.ControllerTimeout <= 0 ||
@@ -153,4 +164,25 @@ func checkURL(urlpath string) bool {
 		return false
 	}
 	return true
+}
+
+// sanitizePath validate and sanitize a file path.
+func sanitizePath(filePath string) (string, error) {
+	// Validate path
+	path, err := filepath.Abs(filePath)
+	if err != nil {
+		return "", err
+	}
+	// Sanitize file path
+	path = strings.ReplaceAll(path, "\x00", "")
+	path = filepath.Clean(path)
+	if strings.ContainsAny(path, `<>"|?*`) {
+		return "", fmt.Errorf("invalid characters")
+	}
+	// Check if the directory exists
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return "", err
+	}
+	return path, nil
 }

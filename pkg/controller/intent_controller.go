@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -14,9 +13,6 @@ import (
 
 	"k8s.io/klog/v2"
 )
-
-// lockFile defines a path to the lock file.
-const lockFile = "/tmp/trainings_lock"
 
 // warmupDone will be set to true once the first tick is triggered.
 var warmupDone = false
@@ -165,8 +161,7 @@ func (c *IntentController) worker(id int, tasks <-chan string) {
 		c.intentsLock.Unlock()
 		plan := planner.CreatePlan(current, desired, c.profiles)
 		klog.Infof("Planner output for %s was: %v", key, plan)
-		_, err := os.Stat(lockFile)
-		if err != nil && len(plan) > 0 {
+		if desired.Intent.ActivelyManaged && len(plan) > 0 {
 			klog.V(2).Infof("Triggering execution of plan for: %s.", key)
 			go planner.ExecutePlan(current, plan)
 			c.planCache.Put(key)

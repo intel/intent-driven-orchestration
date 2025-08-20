@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +35,7 @@ type RdtConfig struct {
 	Analytics             string   `json:"analytics_script"`
 	Prediction            string   `json:"prediction_script"`
 	Options               []string `json:"options"`
+	AnnotationName        string   `json:"annotation_name"`
 	Endpoint              string   `json:"endpoint"`
 	Port                  int      `json:"port"`
 	PluginManagerEndpoint string   `json:"plugin_manager_endpoint"`
@@ -45,6 +48,7 @@ type RdtActuator struct {
 	config RdtConfig
 	tracer controller.Tracer
 	k8s    kubernetes.Interface
+	Cmd    *exec.Cmd
 }
 
 func (rdt RdtActuator) Name() string {
@@ -59,10 +63,8 @@ func (rdt RdtActuator) Group() string {
 type requestBody struct {
 	Name     string  `json:"name"`
 	Target   string  `json:"target"`
+	CPU      float64 `json:"cpu"`
 	Option   string  `json:"option"`
-	Load     float64 `json:"load"`
-	IPCValue float64 `json:"ipc_value"`
-	Class    string  `json:"class"`
 	Replicas int     `json:"replicas"`
 }
 
@@ -77,7 +79,7 @@ func doQuery(body requestBody) float64 {
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
-	resp, err := client.Post("http://localhost:8000", "application/json", bytes.NewBuffer(tmp))
+	resp, err := client.Post("http://127.0.0.1:8000", "application/json", bytes.NewBuffer(tmp))
 	if err != nil {
 		klog.Errorf("Could not reach prediction endpoint: %s.", err)
 		return -1.0
@@ -102,11 +104,31 @@ func doQuery(body requestBody) float64 {
 	return res.Val
 }
 
-func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State, profiles map[string]common.Profile) (common.State, string, float64) {
-	distance := start.Distance(goal, profiles)
-	var res common.State
-	var selectedOption string
-	var utility float64
+// getResources tries to determine the allocated cpu units for the last container.
+func getResources(resources map[string]int64) int64 {
+	cpu := int64(0)
+	index := -1
+	for key, value := range resources {
+		name := strings.Split(key, "_")
+		containerIdx, err := strconv.Atoi(name[0])
+		if err != nil {
+			klog.Errorf("Failed to convert: %v", err)
+			return 0
+		}
+		if name[1] == "cpu" && containerIdx > index && name[2] == "limits" {
+			cpu = value
+			index = containerIdx
+		}
+	}
+	return cpu
+}
+
+// findStates determine a set of possible follow-up states.
+func (rdt RdtActuator) findStates(start *common.State, goal *common.State, profiles map[string]common.Profile, currentOption string) ([]common.State, []float64, []planner.Action) {
+	var candidates []common.State
+	var utilities []float64
+	var actions []planner.Action
+
 	for _, option := range rdt.config.Options {
 		newState := start.DeepCopy()
 		tempSum := 0.0
@@ -114,6 +136,7 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 		found := true
 
 		// predict effect of this config option...
+		candidate := false
 		for k := range newState.Intent.Objectives {
 			if profiles[k].ProfileType != common.ProfileTypeFromText("latency") {
 				// only work on latency related targets.
@@ -121,21 +144,7 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 			}
 
 			// required parameters.
-			load := 0.0
-			for _, val := range newState.CurrentData["cpu_value"] {
-				load += val
-			}
-			if len(newState.CurrentData["cpu_value"]) > 1 {
-				load /= float64(len(newState.CurrentData["cpu_value"]))
-			}
-			ipc := 0.0
-			for _, val := range newState.CurrentData["ipc_value"] {
-				ipc += val
-			}
-			if len(newState.CurrentData["ipc_value"]) > 1 {
-				ipc /= float64(len(newState.CurrentData["ipc_value"]))
-			}
-			qosClass := "Burstable" // TODO: pick up from pod specs.
+			cpu := getResources(start.Resources)
 			replicas := len(newState.CurrentPods)
 
 			// actually predict.
@@ -143,9 +152,7 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 				Name:     newState.Intent.Key,
 				Target:   k,
 				Option:   option,
-				Load:     load,
-				IPCValue: ipc,
-				Class:    qosClass,
+				CPU:      float64(cpu / 1000.0),
 				Replicas: replicas,
 			}
 			predictedValue := doQuery(body)
@@ -156,6 +163,9 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 			}
 
 			newState.Intent.Objectives[k] = predictedValue
+			if newState.Intent.Objectives[k] <= goal.Intent.Objectives[k] {
+				candidate = true
+			}
 			tempPredSum += predictedValue
 			tempSum += goal.Intent.Objectives[k]
 		}
@@ -163,92 +173,135 @@ func (rdt RdtActuator) findFollowUpState(start *common.State, goal *common.State
 		// test if better and closer...
 		if option == "None" && newState.IsBetter(goal, profiles) && found {
 			// if None is good enough, go for that.
-			return newState, option, 0.0
-		} else if newState.IsBetter(goal, profiles) && newState.Distance(goal, profiles) < distance && found {
+			if currentOption != "None" {
+				return []common.State{newState}, []float64{0.0}, []planner.Action{{Name: rdt.Name(), Properties: map[string]string{"option": "None"}}}
+			}
+			return nil, nil, nil
+		} else if candidate && found {
 			if len(newState.Annotations) > 0 {
 				newState.Annotations["rdtVisited"] = ""
 			} else {
 				newState.Annotations = map[string]string{"rdtVisited": ""}
 			}
-			selectedOption = option
+			utility := 0.0
 			if tempPredSum < tempSum {
 				utility = tempPredSum / tempSum * goal.Intent.Priority
 			} else {
 				utility = tempPredSum / tempSum * 1 / goal.Intent.Priority
 			}
-			distance = newState.Distance(goal, profiles)
-			res = newState
+			if option != currentOption {
+				candidates = append(candidates, newState)
+				utilities = append(utilities, utility)
+				actions = append(actions, planner.Action{Name: rdt.Name(), Properties: map[string]string{"option": option}})
+			}
+			if newState.IsBetter(goal, profiles) {
+				break
+			}
 		}
 	}
-	return res, selectedOption, utility
+	return candidates, utilities, actions
 }
 
 func (rdt RdtActuator) NextState(state *common.State, goal *common.State, profiles map[string]common.Profile) ([]common.State, []float64, []planner.Action) {
 	klog.V(2).Infof("Finding next state for %s.", state.Intent.Key)
 	currentOption := "None"
 	// we do not support recursive action calls in the state graph.
-	if _, found := state.Annotations[rdtActionName]; found {
-		currentOption = state.Annotations[rdtActionName]
+	if _, found := state.Annotations[rdt.config.AnnotationName]; found {
+		currentOption = state.Annotations[rdt.config.AnnotationName]
 	}
 	if _, found := state.Annotations["rdtVisited"]; found {
 		return nil, nil, nil
 	}
 
-	// find a good follow-up state...
-	newState, option, utility := rdt.findFollowUpState(state, goal, profiles)
-	if len(option) > 0 && option != currentOption {
-		action := planner.Action{Name: rdt.Name(), Properties: map[string]string{"option": option}}
-		return []common.State{newState}, []float64{utility}, []planner.Action{action}
+	// make sure we only operate on guaranteed PODs.
+	for _, podState := range state.CurrentPods {
+		if podState.QoSClass != "Guaranteed" {
+			klog.Warningf("Targeted workload is not in guaranteed QoS class.")
+			return nil, nil, nil
+		}
+		break // all PODs are equal.
 	}
-	return nil, nil, nil
+
+	// find a good follow-up state...
+	states, utilities, actions := rdt.findStates(state, goal, profiles, currentOption)
+	return states, utilities, actions
 }
 
 func (rdt RdtActuator) Perform(state *common.State, plan []planner.Action) {
 	klog.V(2).Infof("%s-%s - performing plan: %v", rdt.Group(), rdt.Name(), plan)
-	var option string
+	option := "n/a"
 	for _, item := range plan {
 		if item.Name == rdt.Name() {
 			option = item.Properties.(map[string]string)["option"]
 		}
 	}
+	if option == "n/a" {
+		klog.V(2).Infof("Nothing to do for: %v.", state.Intent.TargetKey)
+		return
+	}
 	tmp := strings.Split(state.Intent.TargetKey, "/")
 	namespace := tmp[0]
 
-	// set annotation
-	for podName := range state.CurrentPods {
-		res, err := rdt.k8s.CoreV1().Pods(namespace).Get(context.TODO(), podName, metaV1.GetOptions{})
+	// set annotation on deployment - will cause a POD restart atm; required atm as containerd/cri-o only handle setting RDT settings on POD starts.
+	if state.Intent.TargetKind == "Deployment" {
+		deployment, err := rdt.k8s.AppsV1().Deployments(namespace).Get(context.TODO(), tmp[1], metaV1.GetOptions{})
 		if err != nil {
-			klog.Errorf("failed to get version of POD: %v", err)
+			klog.Errorf("failed to get deployment: %s - %v", state.Intent.TargetKey, err)
 			return
 		}
-		newPod := res.DeepCopy()
-		annotations := newPod.ObjectMeta.Annotations
-		if annotations == nil {
-			annotations = make(map[string]string)
+		newDeployment := deployment.DeepCopy()
+		podAnnotations := newDeployment.Spec.Template.ObjectMeta.Annotations
+		if podAnnotations == nil {
+			podAnnotations = make(map[string]string)
 		}
 		if option != "None" {
-			annotations[rdtActionName] = option
+			podAnnotations[rdt.config.AnnotationName] = option
 		} else {
-			delete(annotations, rdtActionName)
+			delete(podAnnotations, rdt.config.AnnotationName)
 		}
-		newPod.ObjectMeta.Annotations = annotations
-		_, err = rdt.k8s.CoreV1().Pods(res.ObjectMeta.Namespace).Update(context.TODO(), newPod, metaV1.UpdateOptions{})
+		_, err = rdt.k8s.AppsV1().Deployments(deployment.ObjectMeta.Namespace).Update(context.TODO(), newDeployment, metaV1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("failed to get update POD: %v", err)
+			klog.Errorf("failed to update deployment: %v", err)
+			return
+		}
+	} else if state.Intent.TargetKind == "ReplicaSet" {
+		replicaSet, err := rdt.k8s.AppsV1().ReplicaSets(namespace).Get(context.TODO(), tmp[1], metaV1.GetOptions{})
+		if err != nil {
+			klog.Errorf("failed to get replicaset: %s - %v", state.Intent.TargetKey, err)
+			return
+		}
+		newReplicaSet := replicaSet.DeepCopy()
+		podAnnotations := newReplicaSet.Spec.Template.ObjectMeta.Annotations
+		if podAnnotations == nil {
+			podAnnotations = make(map[string]string)
+		}
+		if option != "None" {
+			podAnnotations[rdt.config.AnnotationName] = option
+		} else {
+			delete(podAnnotations, rdt.config.AnnotationName)
+		}
+		_, err = rdt.k8s.AppsV1().ReplicaSets(replicaSet.ObjectMeta.Namespace).Update(context.TODO(), newReplicaSet, metaV1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("failed to update replicaset: %v", err)
 			return
 		}
 	}
+
 	// TODO: add NFD/NPD requirement label.
 	// TODO: set any hints for scheduler.
 }
 
 func (rdt RdtActuator) Effect(state *common.State, profiles map[string]common.Profile) {
-	klog.V(2).Infof("Triggering effect calculation for: %v", state.Intent.Objectives)
+	if rdt.config.Analytics == "None" {
+		klog.V(2).Infof("Effect calculation is disabled.")
+		return
+	}
+	klog.V(2).Infof("Triggering effect calculation for: %v", state.Intent.TargetKey)
 	for name := range state.Intent.Objectives {
 		if profiles[name].ProfileType != common.ProfileTypeFromText("latency") {
 			continue
 		}
-		cmd := exec.Command(rdt.config.Interpreter, rdt.config.Analytics, state.Intent.Key, name) //#nosec G204 -- NA
+		cmd := exec.Command(rdt.config.Interpreter, rdt.config.Analytics, state.Intent.Key, name, rdt.config.AnnotationName) //#nosec G204 -- NA
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			klog.Errorf("Error triggering analytics script: %s - %s.", err, string(out))
@@ -259,15 +312,19 @@ func (rdt RdtActuator) Effect(state *common.State, profiles map[string]common.Pr
 // NewRdtActuator initializes a new actuator.
 func NewRdtActuator(client kubernetes.Interface, tracer controller.Tracer, cfg RdtConfig) *RdtActuator {
 	cmd := exec.Command(cfg.Interpreter, cfg.Prediction) //#nosec G204 -- NA
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	if err != nil {
 		klog.Errorf("Could not start the prediction script: %s.", err)
 	}
 	time.Sleep(500 * time.Millisecond)
+	klog.Infof("PID is: %d", cmd.Process.Pid)
 
 	return &RdtActuator{
 		config: cfg,
 		tracer: tracer,
 		k8s:    client,
+		Cmd:    cmd,
 	}
 }

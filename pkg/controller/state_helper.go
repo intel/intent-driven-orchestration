@@ -119,6 +119,7 @@ func getCurrentState(
 			TargetKey:  objective.TargetKey,
 			TargetKind: objective.TargetKind,
 			Objectives: currentObjectives,
+			// For current state we'll not carry the tolerations.
 		},
 		CurrentPods: pods,
 		CurrentData: data,

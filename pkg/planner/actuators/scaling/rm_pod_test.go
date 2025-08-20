@@ -43,13 +43,7 @@ func (f *rmPodActuatorFixture) newRmPodTestActuator() *RmPodActuator {
 func TestRmNextStateForSuccess(t *testing.T) {
 	f := newRmPodActuatorFixture(t)
 	start := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -64,8 +58,8 @@ func TestRmNextStateForSuccess(t *testing.T) {
 	}
 	goal := common.State{}
 	profiles := map[string]common.Profile{
-		"default/p99": {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/rps": {ProfileType: common.ProfileTypeFromText("throughput")},
+		"default/p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/rps": {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false},
 	}
 	actuator := f.newRmPodTestActuator()
 	actuator.NextState(&start, &goal, profiles)
@@ -83,13 +77,7 @@ func TestRmPerformForSuccess(t *testing.T) {
 		},
 	}
 	s0 := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "my-deployment",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -120,13 +108,7 @@ func TestRmNextStateForFailure(t *testing.T) {
 	actuator := f.newRmPodTestActuator()
 
 	state := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -140,7 +122,7 @@ func TestRmNextStateForFailure(t *testing.T) {
 	goal := common.State{}
 	goal.Intent.Objectives = map[string]float64{"default/p99": 3.0, "default/rps": 0.0, "default/availability": 0.999}
 	profiles := map[string]common.Profile{
-		"default/p99": {ProfileType: common.ProfileTypeFromText("latency")},
+		"default/p99": {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
 	}
 
 	// no throughput is being tracked.
@@ -165,13 +147,7 @@ func TestRmPerformForFailure(t *testing.T) {
 	f := newRmPodActuatorFixture(t)
 	f.objects = []runtime.Object{}
 	s0 := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "my-deployment",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -195,13 +171,7 @@ func TestRmPerformForFailure(t *testing.T) {
 func TestRmNextStateForSanity(t *testing.T) {
 	f := newRmPodActuatorFixture(t)
 	start := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "default/my-objective",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",
@@ -220,9 +190,9 @@ func TestRmNextStateForSanity(t *testing.T) {
 	goal := common.State{}
 	goal.Intent.Priority = 1.0
 	profiles := map[string]common.Profile{
-		"default/p99":          {ProfileType: common.ProfileTypeFromText("latency")},
-		"default/rps":          {ProfileType: common.ProfileTypeFromText("throughput")},
-		"default/availability": {ProfileType: common.ProfileTypeFromText("availability")},
+		"default/p99":          {ProfileType: common.ProfileTypeFromText("latency"), Minimize: true},
+		"default/rps":          {ProfileType: common.ProfileTypeFromText("throughput"), Minimize: false},
+		"default/availability": {ProfileType: common.ProfileTypeFromText("availability"), Minimize: false},
 	}
 	actuator := f.newRmPodTestActuator()
 	states, utilities, actions := actuator.NextState(&start, &goal, profiles)
@@ -249,13 +219,7 @@ func TestRmPerformForSanity(t *testing.T) {
 		},
 	}
 	s0 := common.State{
-		Intent: struct {
-			Key        string
-			Priority   float64
-			TargetKey  string
-			TargetKind string
-			Objectives map[string]float64
-		}{
+		Intent: common.Intent{
 			Key:        "my-deployment",
 			Priority:   1.0,
 			TargetKey:  "default/my-deployment",

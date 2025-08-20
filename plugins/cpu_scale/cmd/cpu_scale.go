@@ -52,7 +52,7 @@ func main() {
 		klog.Fatalf("Error on generic configuration for actuator: %s", err)
 	}
 	err = isValidConf(cfg.PythonInterpreter, cfg.Script, cfg.CPUMax, cfg.CPURounding, cfg.MaxProActiveCPU,
-		cfg.CPUSafeGuardFactor, cfg.ProActiveLatencyPercentage, cfg.LookBack)
+		cfg.BoostFactor, cfg.CPUSafeGuardFactor, cfg.ProActiveLatencyPercentage, cfg.LookBack)
 	if err != nil {
 		klog.Fatalf("Error on configuration for actuator: %s", err)
 	}
@@ -75,7 +75,7 @@ func main() {
 }
 
 func isValidConf(interpreter, script string, confCPUMax, confCPURounding, confMaxProActiveCPU int64,
-	confCPUSafeGuardFactor, configProActiveLatencyPercentage float64, lookBack int) error {
+	boostFactor, confCPUSafeGuardFactor, configProActiveLatencyPercentage float64, lookBack int) error {
 	if !pluginsHelper.IsStrConfigValid(interpreter) {
 		return fmt.Errorf("invalid path to python interpreter: %s", interpreter)
 	}
@@ -97,6 +97,10 @@ func isValidConf(interpreter, script string, confCPUMax, confCPURounding, confMa
 
 	if confMaxProActiveCPU < 0 || confMaxProActiveCPU > confCPUMax {
 		return fmt.Errorf("invalid max proactive value: %d", confMaxProActiveCPU)
+	}
+
+	if boostFactor < 0.0 || boostFactor > 10.0 {
+		return fmt.Errorf("invalid boost factor - needs to be in range of 0-10; was: %f", boostFactor)
 	}
 
 	if confCPUSafeGuardFactor <= 0 || confCPUSafeGuardFactor > 1 {

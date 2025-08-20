@@ -24,6 +24,7 @@ import (
 	informers "github.com/intel/intent-driven-orchestration/pkg/generated/informers/externalversions"
 	"github.com/intel/intent-driven-orchestration/pkg/planner"
 	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators"
+	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators/platform"
 	"github.com/intel/intent-driven-orchestration/pkg/planner/actuators/scaling"
 	"github.com/intel/intent-driven-orchestration/pkg/planner/astar"
 	appsV1 "k8s.io/api/apps/v1"
@@ -92,11 +93,15 @@ func (t fileTracer) GetEffect(name string, group string, profileName string, _ i
 		return tmp, nil
 	} else if group == "vertical_scaling" {
 		tmp := constructor().(*scaling.CPUScaleEffect)
-		popt := [3]float64{}
-		for i, v := range data["popt"].([]interface{}) {
-			popt[i] = v.(float64)
+		rawPopt := data["popt"].([]interface{})
+		popt := make([][3]float64, len(rawPopt))
+		for i, raw := range rawPopt {
+			triple := raw.([]interface{})
+			for j := 0; j < 3; j++ {
+				popt[i][j] = triple[j].(float64)
+			}
 		}
-		tmp.Popt = popt
+		tmp.Popts = popt
 		return tmp, nil
 	}
 	return nil, nil
@@ -143,6 +148,7 @@ type testFixture struct {
 	k8sInformer      k8sInformers.SharedInformerFactory
 	intentInformer   informers.SharedInformerFactory
 	tracer           fileTracer
+	actuators        []actuators.Actuator
 	prometheus       prometheusDummy
 	prometheusServer *http.Server
 	ticker           chan planEvent
@@ -307,6 +313,7 @@ func (f *testFixture) newTestSetup(env testEnvironment, stopper chan struct{}) c
 		result := res[0].Interface()
 		actuatorList = append(actuatorList, result.(actuators.Actuator))
 	}
+	f.actuators = actuatorList
 	plnr := astar.NewAPlanner(actuatorList, *env.defaults)
 	defer plnr.Stop()
 
@@ -341,13 +348,14 @@ func (f *testFixture) newTestSetup(env testEnvironment, stopper chan struct{}) c
 
 // Event represents an entry from an events' collection.
 type Event struct {
-	Intent    string                            `json:"name"`
-	Current   map[string]float64                `json:"current_objectives"`
-	Desired   map[string]float64                `json:"desired_objectives"`
-	Pods      map[string]map[string]interface{} `json:"pods"`
-	Resources map[string]int64                  `json:"resources"`
-	Plan      []map[string]interface{}          `json:"plan"`
-	Data      map[string]map[string]float64     `json:"data"`
+	Intent      string                            `json:"name"`
+	Current     map[string]float64                `json:"current_objectives"`
+	Desired     map[string]float64                `json:"desired_objectives"`
+	Pods        map[string]map[string]interface{} `json:"pods"`
+	Resources   map[string]int64                  `json:"resources"`
+	Annotations map[string]string                 `json:"annotations"`
+	Plan        []map[string]interface{}          `json:"plan"`
+	Data        map[string]map[string]float64     `json:"data"`
 }
 
 // Effect represents an entry in an effects' collection.
@@ -375,7 +383,7 @@ func parseTrace(filename string) []Event {
 	tmp, err1 := io.ReadAll(trace)
 	err2 := json.Unmarshal(tmp, &events)
 	if err1 != nil || err2 != nil {
-		klog.Errorf("Could not read and/or unmarshal trace: %v-%v.", err1, err2)
+		klog.Errorf("Could not read and/or unmarshal trace %s: %v-%v.", filename, err1, err2)
 	}
 	return events
 }
@@ -424,8 +432,10 @@ func (f *testFixture) setupProfiles(profiles map[string]float64) {
 	for name := range profiles {
 		tmp := strings.Split(name, "/")
 		typeName := "throughput"
+		minimize := false
 		if strings.Contains(tmp[1], "latency") {
 			typeName = "latency"
+			minimize = true
 		}
 		profile := &v1alpha1.KPIProfile{
 			ObjectMeta: metaV1.ObjectMeta{
@@ -433,7 +443,8 @@ func (f *testFixture) setupProfiles(profiles map[string]float64) {
 				Namespace: tmp[0],
 			},
 			Spec: v1alpha1.KPIProfileSpec{
-				KPIType: typeName,
+				KPIType:  typeName,
+				Minimize: minimize,
 			},
 		}
 		_, err := f.intentClient.IdoV1alpha1().KPIProfiles(tmp[0]).Create(context.TODO(), profile, metaV1.CreateOptions{})
@@ -446,12 +457,12 @@ func (f *testFixture) setupProfiles(profiles map[string]float64) {
 }
 
 // setWorkloadState updates the deployment and pod specs.
-func (f *testFixture) setWorkloadState(pods map[string]map[string]interface{}, resources map[string]int64) {
+func (f *testFixture) setWorkloadState(pods map[string]map[string]interface{}, resources map[string]int64, annotations map[string]string) {
 	// FIXME: current we do not store information on the workload - we could pick it up from a manifest later on.
 	// if deployment does not exist - add it.
 	res, err := f.k8sClient.AppsV1().Deployments("default").Get(context.TODO(), "function-deployment", metaV1.GetOptions{})
 	if err != nil || res == nil {
-		repl := int32(len(pods)) //nolint:gosec // explanation: casting len to int64 for API compatibility
+		repl := int32(len(pods)) //nolint:gosec // explanation: casting len to int32 for API compatibility
 		deployment := &appsV1.Deployment{
 			ObjectMeta: metaV1.ObjectMeta{
 				Name:      "function-deployment",
@@ -490,9 +501,10 @@ func (f *testFixture) setWorkloadState(pods map[string]map[string]interface{}, r
 		if err != nil || res == nil {
 			pod := &coreV1.Pod{
 				ObjectMeta: metaV1.ObjectMeta{
-					Name:      key,
-					Labels:    map[string]string{"app": "sample-function"},
-					Namespace: "default",
+					Name:        key,
+					Labels:      map[string]string{"app": "sample-function"},
+					Namespace:   "default",
+					Annotations: annotations,
 				},
 				Status: coreV1.PodStatus{
 					Phase:    coreV1.PodPhase(pods[key]["state"].(string)),
@@ -628,12 +640,12 @@ func (f *testFixture) setCurrentData(vals map[string]map[string]float64) {
 }
 
 // comparePlans compares two planes and returns false if they are not the same.
-func comparePlans(onePlan []map[string]interface{}, anotherPlan []planner.Action) bool {
-	if len(anotherPlan) != len(onePlan) {
+func comparePlans(oldPlanSet []map[string]interface{}, newActions []planner.Action) bool {
+	if len(newActions) != len(oldPlanSet) {
 		return false
 	}
 	var oldPlan []planner.Action
-	for _, entry := range onePlan {
+	for _, entry := range oldPlanSet {
 		tmp := planner.Action{
 			Name:       entry["name"].(string),
 			Properties: entry["properties"],
@@ -641,18 +653,18 @@ func comparePlans(onePlan []map[string]interface{}, anotherPlan []planner.Action
 		oldPlan = append(oldPlan, tmp)
 	}
 	for i, item := range oldPlan {
-		if item.Name != anotherPlan[i].Name {
-			klog.Infof("Expected action name: %v - got %v", item.Name, anotherPlan[i].Name)
+		if item.Name != newActions[i].Name {
+			klog.Infof("Expected action name: %v - got %v", item.Name, newActions[i].Name)
 			return false
 		}
 		one := fmt.Sprintf("%v", item.Properties)
-		another := fmt.Sprintf("%v", anotherPlan[i].Properties)
+		another := fmt.Sprintf("%v", newActions[i].Properties)
 		if one != another && item.Name != "rmPod" {
 			klog.Infof("Expected property: %v - got %v", one, another)
 			return false
 		} else if item.Name == "rmPod" {
 			if one != another && len(one) == len(another) {
-				klog.Warningf("Not super sure - but looks ok: %v - %v", item.Properties, anotherPlan[i].Properties)
+				klog.Warningf("Not super sure - but looks ok: %v - %v", item.Properties, newActions[i].Properties)
 			} else if one != another {
 				klog.Infof("This does not look right; expected: %v - got %v", one, another)
 				return false
@@ -663,7 +675,7 @@ func comparePlans(onePlan []map[string]interface{}, anotherPlan []planner.Action
 }
 
 // runTrace tries to retrace a single trace.
-func runTrace(env testEnvironment, t *testing.T) {
+func runTrace(env testEnvironment, t *testing.T, callback func([]actuators.Actuator)) {
 	f := newTestFixture(t)
 	stopChannel := make(chan struct{})
 	defer close(stopChannel)
@@ -676,7 +688,7 @@ func runTrace(env testEnvironment, t *testing.T) {
 	f.setupIntent(events[0].Intent, events[0].Desired)
 	f.setCurrentObjectives(events[0].Current)
 	f.setCurrentData(events[0].Data)
-	f.setWorkloadState(events[0].Pods, events[0].Resources)
+	f.setWorkloadState(events[0].Pods, events[0].Resources, events[0].Annotations)
 	f.checkPrometheus()
 	<-f.ticker // although we use first entry for setup, we should wait for first plan; but don't need to compare.
 
@@ -685,7 +697,7 @@ func runTrace(env testEnvironment, t *testing.T) {
 		fmt.Println(strconv.Itoa(i) + "----")
 		f.setCurrentObjectives(events[i].Current)
 		f.setCurrentData(events[i].Data)
-		f.setWorkloadState(events[i].Pods, events[i].Resources)
+		f.setWorkloadState(events[i].Pods, events[i].Resources, events[i].Annotations)
 		f.setDesiredObjectives(events[i].Intent, events[i].Desired)
 		f.tracer.stepIndex(i)
 
@@ -695,6 +707,12 @@ func runTrace(env testEnvironment, t *testing.T) {
 		}
 	}
 
+	// cleanup actuators through a quick callback. (if needed)
+	if callback != nil {
+		callback(f.actuators)
+	}
+
+	// cleanup telemetry stuff
 	err := f.prometheusServer.Shutdown(context.TODO())
 	if err != nil {
 		klog.Errorf("Error while shutdown of prometheus server: %v", err)
@@ -717,7 +735,10 @@ func TestTracesForSanity(t *testing.T) {
 	cpuScaleConfig, err4 := common.LoadConfig("traces/cpu_scale.json", func() interface{} {
 		return &scaling.CPUScaleConfig{}
 	})
-	if err1 != nil || err2 != nil || err3 != nil || err4 != nil {
+	rdtConfig, err5 := common.LoadConfig("traces/rdt.json", func() interface{} {
+		return &platform.RdtConfig{}
+	})
+	if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {
 		t.Errorf("Could not load config files!")
 	}
 
@@ -728,12 +749,31 @@ func TestTracesForSanity(t *testing.T) {
 		{name: "horizontal_vertical_scaling", effectsFilename: "traces/trace_1/effects.json", eventsFilename: "traces/trace_1/events.json", defaults: defaultsConfig.(*common.Config), actuators: map[string]actuatorSetup{
 			"NewCPUScaleActuator": {scaling.NewCPUScaleActuator, *cpuScaleConfig.(*scaling.CPUScaleConfig)},
 			"NewRmPodActuator":    {scaling.NewRmPodActuator, *rmPodConfig.(*scaling.RmPodConfig)},
-			"NewScaleOutActuator": {scaling.NewScaleOutActuator, *scaleOutConfig.(*scaling.ScaleOutConfig)},
-		}},
+			"NewScaleOutActuator": {scaling.NewScaleOutActuator, *scaleOutConfig.(*scaling.ScaleOutConfig)}},
+		},
+		{name: "rdt_trace", effectsFilename: "traces/trace_rdt/effects.json", eventsFilename: "traces/trace_rdt/events.json", defaults: defaultsConfig.(*common.Config), actuators: map[string]actuatorSetup{
+			"NewCPUScaleActuator": {scaling.NewCPUScaleActuator, *cpuScaleConfig.(*scaling.CPUScaleConfig)},
+			"NewRDTActuator":      {platform.NewRdtActuator, *rdtConfig.(*platform.RdtConfig)}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runTrace(tt, t)
+			runTrace(tt, t, cleanUp)
 		})
+	}
+}
+
+func cleanUp(actuators []actuators.Actuator) {
+	for _, actuator := range actuators {
+		klog.Infof("Cleaning up actuator '%s'...", actuator.Name())
+		switch v := actuator.(type) {
+		case *platform.RdtActuator:
+			err := v.Cmd.Process.Kill()
+			if err != nil {
+				klog.Errorf("Could not cleanup: %v", err)
+			}
+		default:
+			klog.Infof("Actuator without cleanup needs: %v.", v)
+		}
 	}
 }

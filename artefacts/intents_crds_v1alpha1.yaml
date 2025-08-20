@@ -20,7 +20,7 @@ spec:
                   type: object
                   properties:
                     kind:
-                      description: 'Kind of the owner.'
+                      description: 'Kind of the owner (defaults to Deployment kind).'
                       type: string
                       enum:
                         - Deployment
@@ -33,11 +33,15 @@ spec:
                     - name
                 priority:
                   type: number
-                  description: "Priority for a set of PODs"
+                  description: "Priority for a set of PODs (defaults to 0.01)."
                   format: float
                   minimum: 0.01  # prevents any div 0!
                   maximum: 1.0
                   default: 0.01
+                active:
+                  type: boolean
+                  description: "Indicates if the planner should actively managed this intent (defaults to true)."
+                  default: true
                 objectives:
                   type: array
                   description: "Objectives for a set of PODs."
@@ -54,6 +58,12 @@ spec:
                       measuredBy:
                         type: string
                         description: "Defines what kind of an objective this is. Also defines if the objective is an upper or lower bound objective."
+                      tolerance:
+                        type: number
+                        description: "Indicates a tolerance as percentage in context of the specified target value for the objective (defaults to 0.0) - e.g. 0.1 & target 10ms ==> 11ms."
+                        format: float
+                        minimum: 0.0
+                        default: 0.0
                     required:
                       - name
                       - value
@@ -108,13 +118,16 @@ spec:
             spec:
               type: object
               properties:
-                # TODO: add weight.
                 query:
                   type: string
                   description: "This is an optional parameter - if defined, the user needs to provide a query string defining how to capture the objective's KPI. Optional parameters - in accordance with the provide documentation - can be detailed under props."
                 description:
                   type: string
                   description: "Ideally includes a description on what is measured by the query - including e.g. information on units etc."
+                minimize:
+                  type: boolean
+                  description: "Indicates whether the planner should try to minimize this or not (defaults to true)."
+                  default: true
                 type:
                   type: string
                   description: "Defines the type of the KPI."

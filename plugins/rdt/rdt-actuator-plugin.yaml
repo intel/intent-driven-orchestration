@@ -6,8 +6,8 @@ data:
   defaults.json: |-
     {
       "interpreter": "python3",
-      "analytics_script": "./pkg/planner/actuators/platform/analyze.py",
-      "prediction_script": "./pkg/planner/actuators/platform/predict.py",
+      "analytics_script": "./pkg/planner/actuators/platform/rdt_effect.py",
+      "prediction_script": "./pkg/planner/actuators/platform/rdt_predict.py",
       "options": [
         "None",
         "COS1",
@@ -30,7 +30,8 @@ spec:
   serviceAccountName: planner-service-account
   containers:
     - name: rdt-actuator
-      image: 127.0.0.1:5000/rdt:0.3.0
+      image: 127.0.0.1:5000/rdt:0.4.0
+      imagePullPolicy: Always
       args: [ "-config", "/config/defaults.json" ]
       ports:
         - containerPort: 33334

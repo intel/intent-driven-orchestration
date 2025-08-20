@@ -1,0 +1,30 @@
+[
+  {
+    "name": "default/my-app-intent",
+    "profileName": "default/p99latency",
+    "group": "vertical_scaling",
+    "data": {
+      "latencyRange": [
+        50,
+        150
+      ],
+      "cpuRange": [
+        1,
+        10
+      ],
+      "popt": [
+        [
+          100,
+          0.2,
+          50
+        ]
+      ],
+      "trainingFeatures": [
+        "cpus"
+      ],
+      "targetFeature": "default/p99latency"
+    },
+    "static": true,
+    "timestamp": "0"
+  }
+]

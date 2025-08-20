@@ -1,0 +1,7 @@
+{
+  "interpreter": "python3",
+  "analytics_script": "None",
+  "prediction_script": "traces/trace_rdt/predict.py",
+  "options": ["None", "besteffort", "burstable", "guaranteed"],
+  "annotation_name": "rdt.resources.beta.kubernetes.io/pod"
+}

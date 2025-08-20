@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"io"
+	"os"
 	"time"
 
 	"github.com/intel/intent-driven-orchestration/pkg/controller"
@@ -38,7 +40,32 @@ func main() {
 	}
 	cfg, err := common.ParseConfig(config)
 	if err != nil {
-		klog.Fatalf("Error loading planner config: %s", err)
+		klog.Fatalf("Error loading planner config: %v", err)
+	}
+
+	// set logFile
+	if cfg.Generic.LogFile != "" {
+		err := flag.Set("logtostderr", "false")
+		if err != nil {
+			klog.Fatalf("Error setting flag logtostderr: %v", err)
+		}
+		err = flag.Set("alsologtostderr", "true")
+		if err != nil {
+			klog.Fatalf("Error setting flag alsologtostderr: %v", err)
+		}
+
+		logFile, err := os.OpenFile(cfg.Generic.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err != nil {
+			klog.Fatalf("Failed to open log file: %v", err)
+		}
+		defer logFile.Close()
+
+		multiWriter := io.MultiWriter(os.Stdout, logFile)
+		klog.SetOutput(multiWriter)
+		defer func() {
+			klog.Flush()
+		}()
+		klog.Infof("Successfuly added to klog output the log file: %s", cfg.Generic.LogFile)
 	}
 
 	// K8s genClient setup
@@ -65,7 +92,7 @@ func main() {
 	planner := astar.NewAPlanner(actuatorList, cfg)
 	defer planner.Stop()
 
-	// This is main controller.
+	// This is the main controller.
 	tracer := controller.NewMongoTracer(cfg.Generic.MongoEndpoint)
 	c := controller.NewController(cfg, tracer, k8sClient, podInformerFactory.Core().V1().Pods())
 	c.SetPlanner(planner)

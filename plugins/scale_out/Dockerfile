@@ -1,7 +1,7 @@
 # Copyright (c) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-FROM golang:1.24.2 AS builder
+FROM golang:1.24.6 AS builder
 
 WORKDIR /plugins
 
@@ -11,12 +11,12 @@ RUN make prepare-build build-plugins \
     && go run github.com/google/go-licenses@v1.6.0 save "./..." --save_path licenses \
     && hack/additional-licenses.sh
 
-FROM alpine:3.20
+FROM alpine:3.22
 
 RUN adduser -D nonroot
-RUN apk add --upgrade --no-cache openssl=~3.3 && apk add --no-cache python3=~3.12 py3-matplotlib=~3.7 \
-    py3-pip=~24.0 py3-scikit-learn=~1.3
-RUN pip install --break-system-packages --no-cache-dir pymongo~=4.6
+RUN apk add --upgrade --no-cache openssl=~3.5 && apk add --no-cache python3=~3.12 py3-matplotlib=~3.9 \
+    py3-pip=~25.1 py3-scikit-learn=~1.5
+RUN pip install --break-system-packages --no-cache-dir pymongo~=4.12
 
 WORKDIR /plugins
 
